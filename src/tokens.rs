@@ -19,6 +19,8 @@ pub enum TokenKind {
     CChar,
     USize,
     Void,
+    Char,
+    String,
 
     // Keywords
     Function,
@@ -40,6 +42,9 @@ pub enum TokenKind {
     As,
 
     // Symbols
+    Arrow,
+    Comma,
+    Colon,
     Semicolon,
     NewLine,
     ParenthesesOpen,
@@ -70,10 +75,14 @@ pub enum TokenKind {
 
     // Literal
     Identifier,
-    Integer,
-    Float,
+    HexidecmialNumber,
+    OctalNumber,
+    BinaryNumber,
+    FloatNumber,
+    IntegerNumber,
 
     // Other
+    EndLine,
     Error,
 }
 
@@ -94,7 +103,9 @@ impl TokenKind {
             | TokenKind::CInt
             | TokenKind::CChar
             | TokenKind::USize
-            | TokenKind::Void => true,
+            | TokenKind::Void
+            | TokenKind::Char
+            | TokenKind::String => true,
             _ => false,
         }
     }
@@ -139,16 +150,40 @@ impl TokenKind {
             TokenKind::True
             | TokenKind::False
             | TokenKind::Identifier
-            | TokenKind::Integer
-            | TokenKind::Float => true,
+            | TokenKind::HexidecmialNumber
+            | TokenKind::OctalNumber
+            | TokenKind::BinaryNumber
+            | TokenKind::FloatNumber
+            | TokenKind::IntegerNumber => true,
             _ => false,
+        }
+    }
+
+    pub fn from(str: &str) -> TokenKind {
+        match str {
+            "function" => TokenKind::Function,
+            "extern" => TokenKind::Extern,
+            "let" => TokenKind::Let,
+            "mut" => TokenKind::Mut,
+            "if" => TokenKind::If,
+            "else" => TokenKind::Else,
+            "while" => TokenKind::While,
+            "loop" => TokenKind::Loop,
+            "return" => TokenKind::Return,
+            "not" => TokenKind::Not,
+            "and" => TokenKind::And,
+            "or" => TokenKind::Or,
+            "raw" => TokenKind::Raw,
+            "anon" => TokenKind::Anon,
+            "as" => TokenKind::As,
+            _ => TokenKind::Identifier,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
-    kind: TokenKind,
-    slice: String,
-    span: Span,
+    pub kind: TokenKind,
+    pub slice: String,
+    pub span: Span,
 }

@@ -58,8 +58,8 @@ pub(crate) fn is_binary_numeric(chr: u8) -> bool {
     chr == b'0' || chr == b'1'
 }
 
-pub(crate) fn is_range_inside(a: &Range<usize>, b: &Range<usize>) -> bool {
-    b.start >= a.start && b.end <= a.end
+pub(crate) fn is_space(chr: u8) -> bool {
+    chr == b' ' || chr == b'\t' || chr == b'\r'
 }
 
 pub(crate) fn obtain_ranges(str: &[u8]) -> Vec<Range<usize>> {

@@ -65,7 +65,7 @@ impl Error {
         let message = format!(
             "{}{}{}\u{001b}[0m",
             color,
-            " ".repeat(self.span.start),
+            " ".repeat(self.span.start + 6),
             "^".repeat(self.span.end - self.span.start)
         );
         let mut result = format!("{}{}", code, message);

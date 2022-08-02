@@ -1,35 +1,26 @@
-use crate::{
-    error::{Error, ErrorKind, ErrorSeverity},
-    utils::Span,
-};
+use std::{env, fs};
+
+use lexer::Lexer;
 
 mod error;
+mod lexer;
 mod tokens;
 mod utils;
 
-const TEMP_CODE: &str =
-    "extern function write(anon io: i32, anon buffer: raw c_char, anon count: usize) -> usize
-function main() {
-    write(1, \"Hello World!\\n\", 13)
-}";
-
 fn main() {
-    let err = Error {
-        span: Span {
-            line: 2,
-            start: 10,
-            end: 16,
-            id: 1,
-        },
-        severity: ErrorSeverity::Error,
-        kind: ErrorKind::UnexpectedToken,
-    };
-    eprintln!(
-        "{}",
-        err.show(
-            TEMP_CODE.as_bytes(),
-            "/tmp/jakt-073df714-23e5-48b8-8776-13d90aa62f43.jakt"
-        )
-        .unwrap()
-    );
+    let args: Vec<String> = env::args().collect();
+    let filename = args.get(1).unwrap();
+    let content = fs::read_to_string(&filename).unwrap();
+    let mut lexer = Lexer::new(content.clone());
+
+    match lexer.lex() {
+        Ok(tokens) => {
+            for token in tokens.iter() {
+                println!("{:?}", token);
+            }
+        }
+        Err(error) => {
+            eprintln!("{}", error.show(content.as_bytes(), &filename).unwrap());
+        }
+    }
 }
