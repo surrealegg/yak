@@ -50,7 +50,7 @@ impl Lexer {
         }
     }
 
-    fn create_token(&mut self, kind: TokenKind, length: usize) -> Token {
+    fn create_token(&mut self, kind: TokenKind, length: usize) -> Result<Option<Token>, Error> {
         let result = Token {
             span: Span {
                 id: 0,
@@ -67,7 +67,7 @@ impl Lexer {
         };
         self.cursor += length;
         self.column += length;
-        result
+        Ok(Some(result))
     }
 
     fn keyword_or_identifier(&mut self) -> Result<Option<Token>, Error> {
@@ -79,10 +79,10 @@ impl Lexer {
             }
             length += 1;
         }
-        Ok(Some(self.create_token(
+        self.create_token(
             TokenKind::from(self.input.get(self.cursor..self.cursor + length).unwrap()),
             length,
-        )))
+        )
     }
 
     fn string(&mut self, quote: u8) -> Result<Option<Token>, Error> {
@@ -108,14 +108,14 @@ impl Lexer {
             }
             escaped = !escaped && chr == b'\\';
         }
-        Ok(Some(self.create_token(
+        self.create_token(
             if quote == b'\'' {
                 TokenKind::Char
             } else {
                 TokenKind::String
             },
             length,
-        )))
+        )
     }
 
     fn number(&mut self, current: u8) -> Result<Option<Token>, Error> {
@@ -128,23 +128,21 @@ impl Lexer {
                     while is_hex_numeric(self.peek(length)) {
                         length += 1;
                     }
-                    return Ok(Some(
-                        self.create_token(TokenKind::HexidecmialNumber, length),
-                    ));
+                    return self.create_token(TokenKind::HexidecmialNumber, length);
                 }
                 b'o' => {
                     length += 1;
                     while is_octal_numeric(self.peek(length)) {
                         length += 1;
                     }
-                    return Ok(Some(self.create_token(TokenKind::OctalNumber, length)));
+                    return self.create_token(TokenKind::OctalNumber, length);
                 }
                 b'b' => {
                     length += 1;
                     while is_binary_numeric(self.peek(length)) {
                         length += 1;
                     }
-                    return Ok(Some(self.create_token(TokenKind::BinaryNumber, length)));
+                    return self.create_token(TokenKind::BinaryNumber, length);
                 }
                 _ => {}
             }
@@ -175,14 +173,14 @@ impl Lexer {
             }
         }
 
-        Ok(Some(self.create_token(
+        self.create_token(
             if is_float {
                 TokenKind::FloatNumber
             } else {
                 TokenKind::IntegerNumber
             },
             length,
-        )))
+        )
     }
 
     fn rest(&mut self, current: u8) -> Result<Option<Token>, Error> {
@@ -215,19 +213,43 @@ impl Lexer {
 
         match self.peek(0) {
             b'\0' => Ok(None),
-            b'(' => Ok(Some(self.create_token(TokenKind::ParenthesesOpen, 1))),
-            b')' => Ok(Some(self.create_token(TokenKind::ParenthesesClose, 1))),
-            b'{' => Ok(Some(self.create_token(TokenKind::CurlyBracketOpen, 1))),
-            b'}' => Ok(Some(self.create_token(TokenKind::CurlyBracketClose, 1))),
-            b'[' => Ok(Some(self.create_token(TokenKind::SquareBracketOpen, 1))),
-            b']' => Ok(Some(self.create_token(TokenKind::SquareBracketClose, 1))),
-            b':' => Ok(Some(self.create_token(TokenKind::Colon, 1))),
-            b',' => Ok(Some(self.create_token(TokenKind::Comma, 1))),
-            b'-' if self.next_char_is(b'>') => Ok(Some(self.create_token(TokenKind::Arrow, 2))),
+            b'(' => self.create_token(TokenKind::ParenthesesOpen, 1),
+            b')' => self.create_token(TokenKind::ParenthesesClose, 1),
+            b'{' => self.create_token(TokenKind::CurlyBracketOpen, 1),
+            b'}' => self.create_token(TokenKind::CurlyBracketClose, 1),
+            b'[' => self.create_token(TokenKind::SquareBracketOpen, 1),
+            b']' => self.create_token(TokenKind::SquareBracketClose, 1),
+            b':' => self.create_token(TokenKind::Colon, 1),
+            b';' => self.create_token(TokenKind::Semicolon, 1),
+            b',' => self.create_token(TokenKind::Comma, 1),
+            b'-' if self.next_char_is(b'=') => self.create_token(TokenKind::MinusEqual, 2),
+            b'-' if self.next_char_is(b'>') => self.create_token(TokenKind::Arrow, 2),
+            b'-' => self.create_token(TokenKind::Minus, 2),
+            b'+' if self.next_char_is(b'=') => self.create_token(TokenKind::PlusEqual, 2),
+            b'+' => self.create_token(TokenKind::Plus, 1),
+            b'*' if self.next_char_is(b'=') => self.create_token(TokenKind::AsteriskEqual, 2),
+            b'*' => self.create_token(TokenKind::Asterisk, 1),
+            b'/' if self.next_char_is(b'=') => self.create_token(TokenKind::SlashEqual, 2),
+            b'/' => self.create_token(TokenKind::Slash, 1),
+            b'=' if self.next_char_is(b'=') => self.create_token(TokenKind::DoubleEqual, 2),
+            b'=' => self.create_token(TokenKind::Equal, 1),
+            b'!' if self.next_char_is(b'=') => self.create_token(TokenKind::BangEqual, 2),
+            b'>' if self.next_chars_are(">=".as_bytes()) => {
+                self.create_token(TokenKind::RightShiftEqual, 2)
+            }
+            b'>' if self.next_char_is(b'>') => self.create_token(TokenKind::RightShift, 2),
+            b'>' if self.next_char_is(b'=') => self.create_token(TokenKind::GreatEqual, 2),
+            b'>' => self.create_token(TokenKind::Great, 1),
+            b'<' if self.next_char_is(b'<') => self.create_token(TokenKind::LeftShift, 2),
+            b'<' if self.next_char_is(b'=') => self.create_token(TokenKind::LessEqual, 2),
+            b'<' if self.next_chars_are("<=".as_bytes()) => {
+                self.create_token(TokenKind::LeftShiftEqual, 2)
+            }
+            b'<' => self.create_token(TokenKind::Less, 1),
             b'\n' => {
                 self.line += 1;
                 self.column = 0;
-                Ok(Some(self.create_token(TokenKind::EndLine, 1)))
+                self.create_token(TokenKind::EndLine, 1)
             }
             rest => self.rest(rest),
         }

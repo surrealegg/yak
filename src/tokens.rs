@@ -46,7 +46,6 @@ pub enum TokenKind {
     Comma,
     Colon,
     Semicolon,
-    NewLine,
     ParenthesesOpen,
     ParenthesesClose,
     CurlyBracketOpen,
@@ -55,7 +54,7 @@ pub enum TokenKind {
     SquareBracketClose,
     Plus,
     Minus,
-    Star,
+    Asterisk,
     Slash,
     Equal,
     DoubleEqual,
@@ -68,7 +67,7 @@ pub enum TokenKind {
     LeftShift,
     PlusEqual,
     MinusEqual,
-    StarEqual,
+    AsteriskEqual,
     SlashEqual,
     RightShiftEqual,
     LeftShiftEqual,
@@ -83,7 +82,6 @@ pub enum TokenKind {
 
     // Other
     EndLine,
-    Error,
 }
 
 impl TokenKind {
@@ -114,7 +112,7 @@ impl TokenKind {
         match self {
             TokenKind::Plus
             | TokenKind::Minus
-            | TokenKind::Star
+            | TokenKind::Asterisk
             | TokenKind::Slash
             | TokenKind::Equal
             | TokenKind::DoubleEqual
@@ -127,7 +125,7 @@ impl TokenKind {
             | TokenKind::LeftShift
             | TokenKind::PlusEqual
             | TokenKind::MinusEqual
-            | TokenKind::StarEqual
+            | TokenKind::AsteriskEqual
             | TokenKind::SlashEqual
             | TokenKind::RightShiftEqual
             | TokenKind::LeftShiftEqual
@@ -176,6 +174,23 @@ impl TokenKind {
             "raw" => TokenKind::Raw,
             "anon" => TokenKind::Anon,
             "as" => TokenKind::As,
+            "true" => TokenKind::True,
+            "false" => TokenKind::False,
+            "i8" => TokenKind::I8,
+            "u8" => TokenKind::U8,
+            "i16" => TokenKind::I16,
+            "u16" => TokenKind::U16,
+            "i32" => TokenKind::I32,
+            "u32" => TokenKind::U32,
+            "i64" => TokenKind::I64,
+            "u64" => TokenKind::U64,
+            "f32" => TokenKind::F32,
+            "f64" => TokenKind::F64,
+            "bool" => TokenKind::Bool,
+            "c_int" => TokenKind::CInt,
+            "c_char" => TokenKind::CChar,
+            "usize" => TokenKind::USize,
+            "void" => TokenKind::Void,
             _ => TokenKind::Identifier,
         }
     }
