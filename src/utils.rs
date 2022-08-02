@@ -2,7 +2,8 @@ use std::ops::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Span {
-    pub begin: usize,
+    pub line: usize,
+    pub start: usize,
     pub end: usize,
     pub id: usize,
 }
@@ -10,7 +11,8 @@ pub struct Span {
 impl Default for Span {
     fn default() -> Self {
         Self {
-            begin: 0,
+            line: 0,
+            start: 0,
             end: 0,
             id: 0,
         }
@@ -20,7 +22,8 @@ impl Default for Span {
 impl From<Range<usize>> for Span {
     fn from(value: Range<usize>) -> Self {
         Span {
-            begin: value.start,
+            line: 0,
+            start: value.start,
             end: value.end,
             id: 0,
         }
@@ -53,4 +56,24 @@ pub(crate) fn is_octal_numeric(chr: u8) -> bool {
 
 pub(crate) fn is_binary_numeric(chr: u8) -> bool {
     chr == b'0' || chr == b'1'
+}
+
+pub(crate) fn is_range_inside(a: &Range<usize>, b: &Range<usize>) -> bool {
+    b.start >= a.start && b.end <= a.end
+}
+
+pub(crate) fn obtain_ranges(str: &[u8]) -> Vec<Range<usize>> {
+    let mut result = vec![];
+    let mut idx = 0;
+    let mut start = 0;
+
+    while idx < str.len() {
+        if str[idx] == b'\n' {
+            result.push(start..idx);
+            start = idx + 1;
+        }
+        idx += 1;
+    }
+    result.push(start..str.len());
+    result
 }
