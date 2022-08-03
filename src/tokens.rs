@@ -82,6 +82,7 @@ pub enum TokenKind {
 
     // Other
     EndLine,
+    EndOfFile,
 }
 
 impl TokenKind {

@@ -3,13 +3,22 @@ use crate::utils::{obtain_ranges, Span};
 #[derive(Debug, Clone, Copy)]
 pub enum ErrorKind {
     UnexpectedToken,
+    UnexpectedBinaryOperator,
+    UnexpectedUnaryOperator,
+    ExpectedLiteral,
+    InvalidInteger,
 }
 
 impl ToString for ErrorKind {
     fn to_string(&self) -> String {
         match self {
-            ErrorKind::UnexpectedToken => "unexpected token".to_string(),
+            ErrorKind::UnexpectedToken => "unexpected token",
+            ErrorKind::ExpectedLiteral => "expected literal",
+            ErrorKind::InvalidInteger => "invalid integer",
+            ErrorKind::UnexpectedBinaryOperator => "unexpected binary operator",
+            ErrorKind::UnexpectedUnaryOperator => "unexpected unary operator",
         }
+        .to_string()
     }
 }
 

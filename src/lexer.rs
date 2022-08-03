@@ -50,7 +50,7 @@ impl Lexer {
         }
     }
 
-    fn create_token(&mut self, kind: TokenKind, length: usize) -> Result<Option<Token>, Error> {
+    fn create_token(&mut self, kind: TokenKind, length: usize) -> Result<Token, Error> {
         let result = Token {
             span: Span {
                 id: 0,
@@ -67,10 +67,10 @@ impl Lexer {
         };
         self.cursor += length;
         self.column += length;
-        Ok(Some(result))
+        Ok(result)
     }
 
-    fn keyword_or_identifier(&mut self) -> Result<Option<Token>, Error> {
+    fn keyword_or_identifier(&mut self) -> Result<Token, Error> {
         let mut length = 1;
         loop {
             let chr = self.peek(length);
@@ -85,7 +85,7 @@ impl Lexer {
         )
     }
 
-    fn string(&mut self, quote: u8) -> Result<Option<Token>, Error> {
+    fn string(&mut self, quote: u8) -> Result<Token, Error> {
         let mut length = 1;
         let mut escaped = false;
         loop {
@@ -118,7 +118,7 @@ impl Lexer {
         )
     }
 
-    fn number(&mut self, current: u8) -> Result<Option<Token>, Error> {
+    fn number(&mut self, current: u8) -> Result<Token, Error> {
         let mut length = 1;
 
         if current == b'0' {
@@ -183,7 +183,7 @@ impl Lexer {
         )
     }
 
-    fn rest(&mut self, current: u8) -> Result<Option<Token>, Error> {
+    fn rest(&mut self, current: u8) -> Result<Token, Error> {
         if is_alpha(current) || current == b'_' {
             self.keyword_or_identifier()
         } else if is_numeric(current) {
@@ -204,7 +204,7 @@ impl Lexer {
         }
     }
 
-    fn next(&mut self) -> Result<Option<Token>, Error> {
+    fn next(&mut self) -> Result<Token, Error> {
         // Ignore whitespace
         while is_space(self.peek(0)) {
             self.column += 1;
@@ -212,7 +212,7 @@ impl Lexer {
         }
 
         match self.peek(0) {
-            b'\0' => Ok(None),
+            b'\0' => self.create_token(TokenKind::EndOfFile, 0),
             b'(' => self.create_token(TokenKind::ParenthesesOpen, 1),
             b')' => self.create_token(TokenKind::ParenthesesClose, 1),
             b'{' => self.create_token(TokenKind::CurlyBracketOpen, 1),
@@ -224,7 +224,7 @@ impl Lexer {
             b',' => self.create_token(TokenKind::Comma, 1),
             b'-' if self.next_char_is(b'=') => self.create_token(TokenKind::MinusEqual, 2),
             b'-' if self.next_char_is(b'>') => self.create_token(TokenKind::Arrow, 2),
-            b'-' => self.create_token(TokenKind::Minus, 2),
+            b'-' => self.create_token(TokenKind::Minus, 1),
             b'+' if self.next_char_is(b'=') => self.create_token(TokenKind::PlusEqual, 2),
             b'+' => self.create_token(TokenKind::Plus, 1),
             b'*' if self.next_char_is(b'=') => self.create_token(TokenKind::AsteriskEqual, 2),
@@ -235,7 +235,7 @@ impl Lexer {
             b'=' => self.create_token(TokenKind::Equal, 1),
             b'!' if self.next_char_is(b'=') => self.create_token(TokenKind::BangEqual, 2),
             b'>' if self.next_chars_are(">=".as_bytes()) => {
-                self.create_token(TokenKind::RightShiftEqual, 2)
+                self.create_token(TokenKind::RightShiftEqual, 3)
             }
             b'>' if self.next_char_is(b'>') => self.create_token(TokenKind::RightShift, 2),
             b'>' if self.next_char_is(b'=') => self.create_token(TokenKind::GreatEqual, 2),
@@ -243,7 +243,7 @@ impl Lexer {
             b'<' if self.next_char_is(b'<') => self.create_token(TokenKind::LeftShift, 2),
             b'<' if self.next_char_is(b'=') => self.create_token(TokenKind::LessEqual, 2),
             b'<' if self.next_chars_are("<=".as_bytes()) => {
-                self.create_token(TokenKind::LeftShiftEqual, 2)
+                self.create_token(TokenKind::LeftShiftEqual, 3)
             }
             b'<' => self.create_token(TokenKind::Less, 1),
             b'\n' => {
@@ -257,9 +257,14 @@ impl Lexer {
 
     pub fn lex(&mut self) -> Result<Vec<Token>, Error> {
         let mut result = vec![];
-        while let Some(token) = self.next()? {
+        loop {
+            let token = self.next()?;
+            if token.kind == TokenKind::EndOfFile {
+                break;
+            }
             result.push(token);
         }
+
         Ok(result)
     }
 }
