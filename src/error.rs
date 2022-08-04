@@ -1,24 +1,27 @@
-use crate::utils::{obtain_ranges, Span};
+use crate::{tokens::TokenKind, utils::Span};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ErrorKind {
     UnexpectedToken,
     UnexpectedBinaryOperator,
     UnexpectedUnaryOperator,
     ExpectedLiteral,
     InvalidInteger,
+    ExpectedToken(Vec<TokenKind>),
 }
 
 impl ToString for ErrorKind {
     fn to_string(&self) -> String {
         match self {
-            ErrorKind::UnexpectedToken => "unexpected token",
-            ErrorKind::ExpectedLiteral => "expected literal",
-            ErrorKind::InvalidInteger => "invalid integer",
-            ErrorKind::UnexpectedBinaryOperator => "unexpected binary operator",
-            ErrorKind::UnexpectedUnaryOperator => "unexpected unary operator",
+            ErrorKind::UnexpectedToken => "unexpected token".to_string(),
+            ErrorKind::ExpectedLiteral => "expected literal".to_string(),
+            ErrorKind::InvalidInteger => "invalid integer".to_string(),
+            ErrorKind::UnexpectedBinaryOperator => "unexpected binary operator".to_string(),
+            ErrorKind::UnexpectedUnaryOperator => "unexpected unary operator".to_string(),
+            ErrorKind::ExpectedToken(tokens) => {
+                format!("expected token: {}", TokenKind::from_array(&tokens))
+            }
         }
-        .to_string()
     }
 }
 
@@ -48,7 +51,7 @@ impl ToString for ErrorSeverity {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub span: Span,
     pub kind: ErrorKind,

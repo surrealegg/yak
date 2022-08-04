@@ -9,15 +9,6 @@ pub struct Span {
 }
 
 impl Span {
-    pub fn span_with_begin(start: usize, span: &Span) -> Span {
-        Span {
-            line: span.line,
-            start,
-            end: span.end,
-            id: span.id,
-        }
-    }
-
     pub fn show(&self, contents: &[u8], color: &str) -> Option<String> {
         let lines = obtain_ranges(contents);
         let line = lines.get(self.line)?;
@@ -25,8 +16,8 @@ impl Span {
         let code = format!("{:4}| {}\n", self.line + 1, str);
         let message = format!(
             "{}{}{}\u{001b}[0m",
-            color,
             " ".repeat(self.start + 6),
+            color,
             "^".repeat(self.end - self.start)
         );
         let mut result = format!("{}{}", code, message);
