@@ -8,6 +8,50 @@ pub struct Span {
     pub id: usize,
 }
 
+impl Span {
+    pub fn span_with_begin(start: usize, span: &Span) -> Span {
+        Span {
+            line: span.line,
+            start,
+            end: span.end,
+            id: span.id,
+        }
+    }
+
+    pub fn show(&self, contents: &[u8], color: &str) -> Option<String> {
+        let lines = obtain_ranges(contents);
+        let line = lines.get(self.line)?;
+        let str = String::from_utf8_lossy(&contents[line.clone()]);
+        let code = format!("{:4}| {}\n", self.line + 1, str);
+        let message = format!(
+            "{}{}{}\u{001b}[0m",
+            color,
+            " ".repeat(self.start + 6),
+            "^".repeat(self.end - self.start)
+        );
+        let mut result = format!("{}{}", code, message);
+        if self.line >= 1 {
+            if let Some(prev_line) = lines.get(self.line - 1) {
+                result = format!(
+                    "{:4}| {}\n{}",
+                    self.line,
+                    String::from_utf8_lossy(&contents[prev_line.clone()]),
+                    result
+                );
+            }
+        }
+        if let Some(next_line) = lines.get(self.line + 1) {
+            result = format!(
+                "{}\n{:4}| {}",
+                result,
+                self.line + 2,
+                String::from_utf8_lossy(&contents[next_line.clone()])
+            );
+        }
+        Some(result)
+    }
+}
+
 impl Default for Span {
     fn default() -> Self {
         Self {

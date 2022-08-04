@@ -18,15 +18,13 @@ fn main() {
 
     match lexer.lex() {
         Ok(tokens) => {
-            for token in tokens.iter() {
-                println!("{:?}", token);
-            }
-
             let mut parser = Parser::new(tokens);
             match parser.parse() {
                 Ok(ast) => {
                     for item in ast.iter() {
-                        println!("{:?}", item);
+                        let line = item.span().show(content.as_bytes(), "\u{001b}[33m");
+                        println!("{:#?}", item);
+                        println!("{}", line.unwrap());
                     }
                 }
                 Err(error) => {

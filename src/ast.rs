@@ -130,3 +130,23 @@ pub enum Expression {
 pub enum Statement {
     Expression(Expression),
 }
+
+impl Expression {
+    pub fn span(&self) -> Span {
+        match self {
+            Expression::Literal(literal) => literal.span,
+            Expression::Binary(binary) => binary.span,
+            Expression::Unary(unary) => unary.span,
+            Expression::Call(call) => call.span,
+            Expression::Grouping(grouping) => grouping.span,
+        }
+    }
+}
+
+impl Statement {
+    pub fn span(&self) -> Span {
+        match self {
+            Statement::Expression(expr) => expr.span(),
+        }
+    }
+}
