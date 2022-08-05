@@ -1,7 +1,8 @@
 use crate::{
     ast::{
-        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Grouping, If, Literal,
-        LiteralKind, Statement, Unary, UnaryKind, VariableDeclaration, While,
+        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Function, Grouping, If,
+        Literal, LiteralKind, Param, Prototype, Statement, Type, Unary, UnaryKind,
+        VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -321,8 +322,6 @@ impl Parser {
             if self.check(TokenKind::CurlyBracketClose) || self.check(TokenKind::EndOfFile) {
                 break;
             }
-            println!("{:?}", statements);
-            println!("{:?}", self.peek_kind(0));
         }
 
         self.consume(&[TokenKind::CurlyBracketClose])?;
@@ -364,9 +363,102 @@ impl Parser {
         }))
     }
 
+    fn consume_type(&mut self) -> Result<Type, Error> {
+        let result = match self.peek_kind(0) {
+            TokenKind::I8 => Type::I8,
+            TokenKind::U8 => Type::U8,
+            TokenKind::I16 => Type::I16,
+            TokenKind::U16 => Type::U16,
+            TokenKind::I32 => Type::I32,
+            TokenKind::U32 => Type::U32,
+            TokenKind::I64 => Type::I64,
+            TokenKind::U64 => Type::U64,
+            TokenKind::F32 => Type::F32,
+            TokenKind::F64 => Type::F64,
+            TokenKind::Bool => Type::Bool,
+            TokenKind::CInt => Type::CInt,
+            TokenKind::CChar => Type::CChar,
+            TokenKind::USize => Type::USize,
+            TokenKind::Void => Type::Void,
+            TokenKind::Char => Type::Char,
+            TokenKind::String => Type::String,
+            TokenKind::Raw => {
+                self.advance();
+                let kind = self.consume_type()?;
+                return Ok(Type::Raw(Box::new(kind)));
+            }
+            _ => return Err(self.error(ErrorKind::ExpectedType)),
+        };
+        self.advance();
+        Ok(result)
+    }
+
+    fn param(&mut self) -> Result<Param, Error> {
+        let anon = self.matches_bool(&[TokenKind::Anon]);
+        let name = self.consume(&[TokenKind::Identifier])?;
+        self.consume(&[TokenKind::Colon])?;
+        let kind = self.consume_type()?;
+        Ok(Param {
+            anon,
+            name: name.slice,
+            kind,
+        })
+    }
+
+    fn prototype(&mut self, is_extern: bool) -> Result<Prototype, Error> {
+        if is_extern {
+            self.consume(&[TokenKind::Extern])?;
+        }
+        self.consume(&[TokenKind::Function])?;
+
+        let name = self.consume(&[TokenKind::Identifier])?;
+        let mut params = vec![];
+        self.consume(&[TokenKind::ParenthesesOpen])?;
+
+        if !self.check(TokenKind::ParenthesesClose) {
+            loop {
+                params.push(self.param()?);
+                if !self.matches_bool(&[TokenKind::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        println!("{:?}", params);
+
+        self.consume(&[TokenKind::ParenthesesClose])?;
+        let mut return_type = Type::Void;
+        if self.matches_bool(&[TokenKind::Arrow]) {
+            return_type = self.consume_type()?;
+        }
+
+        Ok(Prototype {
+            is_extern,
+            name: name.slice,
+            params,
+            return_type,
+            span: self.span(),
+        })
+    }
+
+    fn function(&mut self) -> Result<Statement, Error> {
+        let prototype = self.prototype(false)?;
+        let statements = self.block()?;
+        Ok(Statement::Function(Function {
+            prototype,
+            statements,
+        }))
+    }
+
     fn statement(&mut self) -> Result<Statement, Error> {
         self.ignore_whitespace();
         match self.peek_kind(0) {
+            TokenKind::Extern => {
+                let prototype = self.prototype(true)?;
+                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                Ok(Statement::Prototype(prototype))
+            }
+            TokenKind::Function => self.function(),
             TokenKind::Cpp => Err(self.error(ErrorKind::CPPInteropNotSupported)),
             TokenKind::Let => self.variable_declaration(false),
             TokenKind::Mut => self.variable_declaration(true),

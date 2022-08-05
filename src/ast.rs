@@ -163,6 +163,77 @@ pub struct If {
 }
 
 #[derive(Debug)]
+pub enum Type {
+    I8,
+    U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    I64,
+    U64,
+    F32,
+    F64,
+    Bool,
+    CInt,
+    CChar,
+    USize,
+    Void,
+    Char,
+    String,
+    Raw(Box<Type>),
+}
+
+impl TryFrom<TokenKind> for Type {
+    type Error = ();
+
+    fn try_from(kind: TokenKind) -> Result<Self, Self::Error> {
+        match kind {
+            TokenKind::I8 => Ok(Type::I8),
+            TokenKind::U8 => Ok(Type::U8),
+            TokenKind::I16 => Ok(Type::I16),
+            TokenKind::U16 => Ok(Type::U16),
+            TokenKind::I32 => Ok(Type::I32),
+            TokenKind::U32 => Ok(Type::U32),
+            TokenKind::I64 => Ok(Type::I64),
+            TokenKind::U64 => Ok(Type::U64),
+            TokenKind::F32 => Ok(Type::F32),
+            TokenKind::F64 => Ok(Type::F64),
+            TokenKind::Bool => Ok(Type::Bool),
+            TokenKind::CInt => Ok(Type::CInt),
+            TokenKind::CChar => Ok(Type::CChar),
+            TokenKind::USize => Ok(Type::USize),
+            TokenKind::Void => Ok(Type::Void),
+            TokenKind::Char => Ok(Type::Char),
+            TokenKind::String => Ok(Type::String),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Param {
+    pub kind: Type,
+    pub name: String,
+    pub anon: bool,
+}
+
+#[derive(Debug)]
+pub struct Prototype {
+    pub params: Vec<Param>,
+    pub return_type: Type,
+    pub name: String,
+    pub is_extern: bool,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub prototype: Prototype,
+    pub statements: Vec<Statement>,
+}
+
+#[derive(Debug)]
 pub enum Statement {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),
@@ -172,6 +243,8 @@ pub enum Statement {
     Break(Break),
     Continue(Continue),
     If(If),
+    Prototype(Prototype),
+    Function(Function),
 }
 
 impl Expression {
@@ -193,6 +266,7 @@ impl Statement {
             Statement::VariableDeclaration(decl) => decl.span,
             Statement::Break(stat) => stat.span,
             Statement::Continue(stat) => stat.span,
+            Statement::Prototype(prototype) => prototype.span,
             _ => Span::default(),
         }
     }

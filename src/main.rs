@@ -32,7 +32,7 @@ fn main() {
                     println!("AST:");
                     for item in ast.iter() {
                         let line = item.span().show(content.as_bytes(), "\u{001b}[33m");
-                        println!("{:?}", item);
+                        println!("{:#?}", item);
                         println!("{}", line.unwrap());
                     }
                 }

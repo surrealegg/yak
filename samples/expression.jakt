@@ -1,37 +1,35 @@
-"test";
-
 {
-    let x = "Hello World"
-    mut y = 42;
-}
+    "test";
 
-loop {
-    mut z = 50;
-}
+    {
+        let x = "Hello World"
+        mut y = 42;
+    }
 
-while true {
-    "xd";
-    break
+    loop {
+        mut z = 50;
+    }
 
-}
+    while true {
+        "xd";
+        break
 
-if x > 0 {
-    "true";
-}
+    }
 
-if x <= 20 {
-    "true";
-} else {
-    "false"
-}
+    if x > 0 {
+        "true";
+    }
+
+    if x <= 20 {
+        "true";
+    } else {
+        "false"
+    }
 
 
-if z <= 20 {
-    "true";
-} else if z >= 20 {
-    "false"
-}
-
-cpp {
-    "lol no"
+    if z <= 20 {
+        "true";
+    } else if z >= 20 {
+        "false"
+    }
 }

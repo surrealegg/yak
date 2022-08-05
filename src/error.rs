@@ -9,6 +9,7 @@ pub enum ErrorKind {
     InvalidInteger,
     ExpectedToken(Vec<TokenKind>),
     CPPInteropNotSupported,
+    ExpectedType,
 }
 
 impl ToString for ErrorKind {
@@ -25,6 +26,7 @@ impl ToString for ErrorKind {
             ErrorKind::CPPInteropNotSupported => {
                 "c++ interoperability is not supported".to_string()
             }
+            ErrorKind::ExpectedType => "expected type".to_string(),
         }
     }
 }
