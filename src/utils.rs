@@ -15,8 +15,8 @@ impl Span {
         let str = String::from_utf8_lossy(&contents[line.clone()]);
         let code = format!("{:4}| {}\n", self.line + 1, str);
         let message = format!(
-            "{}{}{}\u{001b}[0m",
-            " ".repeat(self.start + 6),
+            "    | {}{}{}\u{001b}[0m",
+            " ".repeat(self.start),
             color,
             "^".repeat(self.end - self.start)
         );

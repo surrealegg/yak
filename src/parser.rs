@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        Binary, BinaryKind, Call, Expression, Grouping, Literal, LiteralKind, Statement, Unary,
-        UnaryKind,
+        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Grouping, Literal,
+        LiteralKind, Statement, Unary, UnaryKind, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -62,6 +62,12 @@ impl Parser {
         return false;
     }
 
+    fn ignore_whitespace(&mut self) {
+        while self.check(TokenKind::Semicolon) || self.check(TokenKind::EndLine) {
+            self.advance();
+        }
+    }
+
     fn consume(&mut self, kinds: &[TokenKind]) -> Result<Token, Error> {
         if let Some(token) = self.matches(kinds) {
             Ok(token)
@@ -111,6 +117,14 @@ impl Parser {
             self.current_span = token.span.clone();
         }
         self.tokens.get(self.cursor - 1)
+    }
+
+    fn peek_kind(&self, relative_index: usize) -> TokenKind {
+        if let Some(token) = self.tokens.get(self.cursor + relative_index) {
+            token.kind
+        } else {
+            TokenKind::EndOfFile
+        }
     }
 
     fn peek(&self, relative_index: usize) -> Option<&Token> {
@@ -284,18 +298,82 @@ impl Parser {
         self.comparison()
     }
 
-    fn statement(&mut self) -> Result<Statement, Error> {
-        let expr = Statement::Expression(self.expression()?);
+    fn variable_declaration(&mut self, mutable: bool) -> Result<Statement, Error> {
+        self.advance();
+        let identifier = self.consume(&[TokenKind::Identifier])?;
+        self.consume(&[TokenKind::Equal])?;
+        let value = self.expression()?;
         self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
-        Ok(expr)
+        Ok(Statement::VariableDeclaration(VariableDeclaration {
+            name: identifier.slice,
+            mutable,
+            span: self.span(),
+            value,
+        }))
+    }
+
+    fn block(&mut self) -> Result<Vec<Statement>, Error> {
+        self.consume(&[TokenKind::CurlyBracketOpen])?;
+        let mut statements = vec![];
+        loop {
+            statements.push(self.statement()?);
+            self.ignore_whitespace();
+            if self.check(TokenKind::CurlyBracketClose) || self.check(TokenKind::EndOfFile) {
+                break;
+            }
+            println!("{:?}", statements);
+            println!("{:?}", self.peek_kind(0));
+        }
+
+        self.consume(&[TokenKind::CurlyBracketClose])?;
+
+        Ok(statements)
+    }
+
+    fn loop_statement(&mut self) -> Result<Statement, Error> {
+        self.consume(&[TokenKind::Loop])?;
+        let block = self.block()?;
+        Ok(Statement::Loop(Block { statements: block }))
+    }
+
+    fn while_statement(&mut self) -> Result<Statement, Error> {
+        self.consume(&[TokenKind::While])?;
+        let expression = self.expression()?;
+        let block = self.block()?;
+        Ok(Statement::While(While { block, expression }))
+    }
+
+    fn statement(&mut self) -> Result<Statement, Error> {
+        self.ignore_whitespace();
+        match self.peek_kind(0) {
+            TokenKind::Let => self.variable_declaration(false),
+            TokenKind::Mut => self.variable_declaration(true),
+            TokenKind::CurlyBracketOpen => Ok(Statement::Block(Block {
+                statements: self.block()?,
+            })),
+            TokenKind::Loop => self.loop_statement(),
+            TokenKind::While => self.while_statement(),
+            TokenKind::Break => {
+                self.consume(&[TokenKind::Break])?;
+                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                Ok(Statement::Break(Break { span: self.span() }))
+            }
+            TokenKind::Continue => {
+                self.consume(&[TokenKind::Continue])?;
+                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                Ok(Statement::Continue(Continue { span: self.span() }))
+            }
+            _ => {
+                let result = Statement::Expression(self.expression()?);
+                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                Ok(result)
+            }
+        }
     }
 
     pub fn parse(&mut self) -> Result<Vec<Statement>, Error> {
         let mut result = vec![];
         loop {
-            while self.check(TokenKind::Semicolon) || self.check(TokenKind::EndLine) {
-                self.advance();
-            }
             if self.is_eof() {
                 break;
             }

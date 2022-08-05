@@ -127,8 +127,43 @@ pub enum Expression {
 }
 
 #[derive(Debug)]
+pub struct VariableDeclaration {
+    pub name: String,
+    pub value: Expression,
+    pub mutable: bool,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Block {
+    pub statements: Vec<Statement>,
+}
+
+#[derive(Debug)]
+pub struct While {
+    pub expression: Expression,
+    pub block: Vec<Statement>,
+}
+
+#[derive(Debug)]
+pub struct Break {
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct Continue {
+    pub span: Span,
+}
+
+#[derive(Debug)]
 pub enum Statement {
     Expression(Expression),
+    VariableDeclaration(VariableDeclaration),
+    Block(Block),
+    Loop(Block),
+    While(While),
+    Break(Break),
+    Continue(Continue),
 }
 
 impl Expression {
@@ -147,6 +182,10 @@ impl Statement {
     pub fn span(&self) -> Span {
         match self {
             Statement::Expression(expr) => expr.span(),
+            Statement::VariableDeclaration(decl) => decl.span,
+            Statement::Break(stat) => stat.span,
+            Statement::Continue(stat) => stat.span,
+            _ => Span::default(),
         }
     }
 }

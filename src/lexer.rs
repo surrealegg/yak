@@ -247,9 +247,10 @@ impl Lexer {
             }
             b'<' => self.create_token(TokenKind::Less, 1),
             b'\n' => {
+                let token = self.create_token(TokenKind::EndLine, 1);
                 self.line += 1;
                 self.column = 0;
-                self.create_token(TokenKind::EndLine, 1)
+                token
             }
             rest => self.rest(rest),
         }
