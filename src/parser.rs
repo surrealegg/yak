@@ -1,6 +1,6 @@
 use crate::{
     ast::{
-        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Grouping, Literal,
+        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Grouping, If, Literal,
         LiteralKind, Statement, Unary, UnaryKind, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
@@ -343,6 +343,27 @@ impl Parser {
         Ok(Statement::While(While { block, expression }))
     }
 
+    fn if_statement(&mut self) -> Result<Statement, Error> {
+        self.consume(&[TokenKind::If])?;
+        let expression = self.expression()?;
+        let true_block = self.block()?;
+        let mut else_block = vec![];
+
+        if self.matches_bool(&[TokenKind::Else]) {
+            if self.check(TokenKind::If) {
+                else_block.push(self.if_statement()?);
+            } else {
+                else_block = self.block()?;
+            }
+        }
+
+        Ok(Statement::If(If {
+            true_block,
+            else_block,
+            expression,
+        }))
+    }
+
     fn statement(&mut self) -> Result<Statement, Error> {
         self.ignore_whitespace();
         match self.peek_kind(0) {
@@ -353,6 +374,7 @@ impl Parser {
             })),
             TokenKind::Loop => self.loop_statement(),
             TokenKind::While => self.while_statement(),
+            TokenKind::If => self.if_statement(),
             TokenKind::Break => {
                 self.consume(&[TokenKind::Break])?;
                 self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;

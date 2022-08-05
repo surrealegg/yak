@@ -156,6 +156,13 @@ pub struct Continue {
 }
 
 #[derive(Debug)]
+pub struct If {
+    pub expression: Expression,
+    pub true_block: Vec<Statement>,
+    pub else_block: Vec<Statement>,
+}
+
+#[derive(Debug)]
 pub enum Statement {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),
@@ -164,6 +171,7 @@ pub enum Statement {
     While(While),
     Break(Break),
     Continue(Continue),
+    If(If),
 }
 
 impl Expression {
