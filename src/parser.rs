@@ -367,6 +367,7 @@ impl Parser {
     fn statement(&mut self) -> Result<Statement, Error> {
         self.ignore_whitespace();
         match self.peek_kind(0) {
+            TokenKind::Cpp => Err(self.error(ErrorKind::CPPInteropNotSupported)),
             TokenKind::Let => self.variable_declaration(false),
             TokenKind::Mut => self.variable_declaration(true),
             TokenKind::CurlyBracketOpen => Ok(Statement::Block(Block {

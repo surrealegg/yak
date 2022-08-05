@@ -31,3 +31,7 @@ if z <= 20 {
 } else if z >= 20 {
     "false"
 }
+
+cpp {
+    "lol no"
+}

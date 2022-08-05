@@ -8,6 +8,7 @@ pub enum ErrorKind {
     ExpectedLiteral,
     InvalidInteger,
     ExpectedToken(Vec<TokenKind>),
+    CPPInteropNotSupported,
 }
 
 impl ToString for ErrorKind {
@@ -20,6 +21,9 @@ impl ToString for ErrorKind {
             ErrorKind::UnexpectedUnaryOperator => "unexpected unary operator".to_string(),
             ErrorKind::ExpectedToken(tokens) => {
                 format!("expected token: {}", TokenKind::from_array(&tokens))
+            }
+            ErrorKind::CPPInteropNotSupported => {
+                "c++ interoperability is not supported".to_string()
             }
         }
     }

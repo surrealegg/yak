@@ -42,6 +42,7 @@ pub enum TokenKind {
     As,
     Break,
     Continue,
+    Cpp,
 
     // Symbols
     Arrow,
@@ -165,6 +166,7 @@ impl ToString for TokenKind {
                 TokenKind::EndOfFile => "\\0",
                 TokenKind::Break => "break",
                 TokenKind::Continue => "continue",
+                TokenKind::Cpp => "cpp",
             }
         )
     }
@@ -286,7 +288,8 @@ impl TokenKind {
             "usize" => TokenKind::USize,
             "void" => TokenKind::Void,
             "break" => TokenKind::Break,
-            "continuie" => TokenKind::Continue,
+            "continue" => TokenKind::Continue,
+            "cpp" => TokenKind::Cpp,
             _ => TokenKind::Identifier,
         }
     }
