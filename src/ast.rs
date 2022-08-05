@@ -131,6 +131,7 @@ pub struct VariableDeclaration {
     pub name: String,
     pub value: Expression,
     pub mutable: bool,
+    pub variable_type: Type,
     pub span: Span,
 }
 
@@ -181,6 +182,7 @@ pub enum Type {
     Void,
     Char,
     String,
+    Unknown,
     Raw(Box<Type>),
 }
 

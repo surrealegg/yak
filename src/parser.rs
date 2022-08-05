@@ -302,11 +302,16 @@ impl Parser {
     fn variable_declaration(&mut self, mutable: bool) -> Result<Statement, Error> {
         self.advance();
         let identifier = self.consume(&[TokenKind::Identifier])?;
+        let mut variable_type = Type::Unknown;
+        if self.matches_bool(&[TokenKind::Colon]) {
+            variable_type = self.consume_type()?;
+        }
         self.consume(&[TokenKind::Equal])?;
         let value = self.expression()?;
         self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
         Ok(Statement::VariableDeclaration(VariableDeclaration {
             name: identifier.slice,
+            variable_type,
             mutable,
             span: self.span(),
             value,
