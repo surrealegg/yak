@@ -137,8 +137,12 @@ impl Parser {
             let kind = match token.kind {
                 TokenKind::True => LiteralKind::Boolean(true),
                 TokenKind::False => LiteralKind::Boolean(false),
-                TokenKind::Char => LiteralKind::Char(token.slice.clone()),
-                TokenKind::String => LiteralKind::String(token.slice.clone()),
+                TokenKind::Char => {
+                    LiteralKind::Char(token.slice[1..token.slice.len() - 1].to_string())
+                }
+                TokenKind::String => {
+                    LiteralKind::String(token.slice[1..token.slice.len() - 1].to_string())
+                }
                 TokenKind::Identifier => LiteralKind::Identifier(token.slice.clone()),
                 TokenKind::IntegerNumber => LiteralKind::Integer(
                     token
