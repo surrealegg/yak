@@ -1,4 +1,7 @@
-use crate::{tokens::TokenKind, utils::Span};
+use crate::{
+    tokens::TokenKind,
+    utils::{variant_eq, Span},
+};
 
 #[derive(Debug)]
 pub enum LiteralKind {
@@ -186,6 +189,15 @@ pub enum Type {
     Raw(Box<Type>),
 }
 
+impl Type {
+    pub fn equal(&self, other: &Type) -> bool {
+        match (self, other) {
+            (Type::Raw(inner_a), Type::Raw(inner_b)) => inner_a.equal(inner_b),
+            (a, b) => variant_eq(a, b),
+        }
+    }
+}
+
 impl TryFrom<TokenKind> for Type {
     type Error = ();
 
@@ -271,5 +283,24 @@ impl Statement {
             Statement::Prototype(prototype) => prototype.span,
             _ => Span::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::ast::Type;
+
+    #[test]
+    fn test_variant_eq() {
+        assert_eq!(Type::Bool.equal(&Type::Bool), true);
+        assert_eq!(Type::Bool.equal(&Type::CChar), false);
+        assert_eq!(
+            Type::Raw(Box::new(Type::Bool)).equal(&Type::Raw(Box::new(Type::Bool))),
+            true
+        );
+        assert_eq!(
+            Type::Raw(Box::new(Type::Bool)).equal(&Type::Raw(Box::new(Type::CChar))),
+            false
+        );
     }
 }
