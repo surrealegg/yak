@@ -248,6 +248,12 @@ pub struct Function {
 }
 
 #[derive(Debug)]
+pub struct Return {
+    pub expression: Expression,
+    pub span: Span,
+}
+
+#[derive(Debug)]
 pub enum Statement {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),
@@ -259,6 +265,7 @@ pub enum Statement {
     If(If),
     Prototype(Prototype),
     Function(Function),
+    Return(Return),
 }
 
 impl Expression {
@@ -281,6 +288,7 @@ impl Statement {
             Statement::Break(stat) => stat.span,
             Statement::Continue(stat) => stat.span,
             Statement::Prototype(prototype) => prototype.span,
+            Statement::Return(ret) => ret.span,
             _ => Span::default(),
         }
     }

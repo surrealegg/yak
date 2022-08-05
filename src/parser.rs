@@ -1,7 +1,7 @@
 use crate::{
     ast::{
         Binary, BinaryKind, Block, Break, Call, Continue, Expression, Function, Grouping, If,
-        Literal, LiteralKind, Param, Prototype, Statement, Type, Unary, UnaryKind,
+        Literal, LiteralKind, Param, Prototype, Return, Statement, Type, Unary, UnaryKind,
         VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
@@ -495,13 +495,20 @@ impl Parser {
             TokenKind::Loop => self.loop_statement(),
             TokenKind::While => self.while_statement(),
             TokenKind::If => self.if_statement(),
+            TokenKind::Return => {
+                self.advance();
+                Ok(Statement::Return(Return {
+                    expression: self.expression()?,
+                    span: self.span(),
+                }))
+            }
             TokenKind::Break => {
-                self.consume(&[TokenKind::Break])?;
+                self.advance();
                 self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
                 Ok(Statement::Break(Break { span: self.span() }))
             }
             TokenKind::Continue => {
-                self.consume(&[TokenKind::Continue])?;
+                self.advance();
                 self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
                 Ok(Statement::Continue(Continue { span: self.span() }))
             }

@@ -1,5 +1,9 @@
 extern function write(anon io: i32, anon buffer: raw c_char, anon count: usize) -> usize
 
+function test() {
+    return "Hello World!"
+}
+
 function main() {
     let length: usize = 13
     let io: i32 = 1;
