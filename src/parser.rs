@@ -15,6 +15,7 @@ pub struct Parser {
     start: usize,
     current_span: Span,
     previous_span: Span,
+    in_function: usize,
 }
 
 impl Parser {
@@ -25,6 +26,7 @@ impl Parser {
             start: 0,
             previous_span: Span::default(),
             current_span: Span::default(),
+            in_function: 0,
         }
     }
 
@@ -130,6 +132,14 @@ impl Parser {
 
     fn peek(&self, relative_index: usize) -> Option<&Token> {
         self.tokens.get(self.cursor + relative_index)
+    }
+
+    fn must_be_in_function(&mut self) -> Result<(), Error> {
+        if self.in_function == 0 {
+            Err(self.error(ErrorKind::ExpectedAnItem))
+        } else {
+            Ok(())
+        }
     }
 
     fn literal(&mut self) -> Result<Expression, Error> {
@@ -300,10 +310,12 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expression, Error> {
+        self.must_be_in_function()?;
         self.comparison()
     }
 
     fn variable_declaration(&mut self, mutable: bool) -> Result<Statement, Error> {
+        self.must_be_in_function()?;
         self.advance();
         let identifier = self.consume(&[TokenKind::Identifier])?;
         let mut variable_type = Type::Unknown;
@@ -323,6 +335,7 @@ impl Parser {
     }
 
     fn block(&mut self) -> Result<Vec<Statement>, Error> {
+        self.must_be_in_function()?;
         self.consume(&[TokenKind::CurlyBracketOpen])?;
         let mut statements = vec![];
         loop {
@@ -339,12 +352,14 @@ impl Parser {
     }
 
     fn loop_statement(&mut self) -> Result<Statement, Error> {
+        self.must_be_in_function()?;
         self.consume(&[TokenKind::Loop])?;
         let block = self.block()?;
         Ok(Statement::Loop(Block { statements: block }))
     }
 
     fn while_statement(&mut self) -> Result<Statement, Error> {
+        self.must_be_in_function()?;
         self.consume(&[TokenKind::While])?;
         let expression = self.expression()?;
         let block = self.block()?;
@@ -352,6 +367,7 @@ impl Parser {
     }
 
     fn if_statement(&mut self) -> Result<Statement, Error> {
+        self.must_be_in_function()?;
         self.consume(&[TokenKind::If])?;
         let expression = self.expression()?;
         let true_block = self.block()?;
@@ -452,7 +468,9 @@ impl Parser {
 
     fn function(&mut self) -> Result<Statement, Error> {
         let prototype = self.prototype(false)?;
+        self.in_function += 1;
         let statements = self.block()?;
+        self.in_function -= 1;
         Ok(Statement::Function(Function {
             prototype,
             statements,
