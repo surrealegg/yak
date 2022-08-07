@@ -120,15 +120,16 @@ impl Typecheker {
                                     span: expr.value.span(),
                                 });
                             }
-                            if (!param.anon || expr.name != "")
-                                && expr.name != param.name
-                                && expr.value.get_variable_name() != param.name
-                            {
+
+                            let label_empty = expr.name.is_empty();
+                            let label = if label_empty {
+                                expr.value.get_variable_name()
+                            } else {
+                                expr.name.clone()
+                            };
+                            if (!param.anon || !label_empty) && label != param.name {
                                 return Err(Error {
-                                    kind: ErrorKind::WrongLabel(
-                                        param.name.clone(),
-                                        expr.name.clone(),
-                                    ),
+                                    kind: ErrorKind::WrongLabel(param.name.clone(), label),
                                     severity: ErrorSeverity::Error,
                                     span: expr.value.span(),
                                 });
