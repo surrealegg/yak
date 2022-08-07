@@ -29,6 +29,7 @@ pub enum ErrorKind {
     CantApplyUnary(UnaryKind, Type),
     InvalidLeftHandSideAssignment,
     CantAssignImmutableVariable(String),
+    DeadCode,
 }
 
 impl ToString for ErrorKind {
@@ -99,6 +100,7 @@ impl ToString for ErrorKind {
             ErrorKind::CantAssignImmutableVariable(name) => {
                 format!("cannot assign twice to immutable variable '{}'", name)
             }
+            ErrorKind::DeadCode => "dead code after return statement".to_string(),
         }
     }
 }

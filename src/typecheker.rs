@@ -25,6 +25,7 @@ pub struct Typecheker {
     variables: Vec<StoredVariable>,
     functions: Vec<StoredFunction>,
     in_loop: usize,
+    warnings: Vec<Error>,
 }
 
 impl Typecheker {
@@ -32,6 +33,7 @@ impl Typecheker {
         Self {
             variables: vec![],
             functions: vec![],
+            warnings: vec![],
             scope: 0,
             in_loop: 0,
         }
@@ -178,18 +180,18 @@ impl Typecheker {
         }
     }
 
-    fn get_statement_return_type(&self, statements: &[Statement]) -> Result<Type, Error> {
+    fn get_statement_return_type(&mut self, statements: &[Statement]) -> Result<Type, Error> {
         let mut it = statements.iter().peekable();
         while let Some(statement) = it.next() {
             if let Statement::Return(ret) = statement {
                 // FIXME: Sort out clippy's error
-                // if it.peek().is_some() {
-                //     self.warnings.push(Error {
-                //         span: ret.span,
-                //         kind: ErrorKind::DeadCode,
-                //         severity: ErrorSeverity::Warning,
-                //     });
-                // }
+                if it.peek().is_some() {
+                    self.warnings.push(Error {
+                        span: ret.span,
+                        kind: ErrorKind::DeadCode,
+                        severity: ErrorSeverity::Warning,
+                    });
+                }
                 return Ok(self.check_expression(&ret.expression)?);
             }
         }
@@ -212,7 +214,7 @@ impl Typecheker {
         }
     }
 
-    fn create_function(&self, function: &Function) -> Result<StoredFunction, Error> {
+    fn create_function(&mut self, function: &Function) -> Result<StoredFunction, Error> {
         let returned_kind = self.get_statement_return_type(&function.statements)?;
         if function.prototype.return_type != Type::Unknown
             && !function.prototype.return_type.equal(&returned_kind)
@@ -338,7 +340,8 @@ impl Typecheker {
                 self.functions.push(self.create_prototype(prototype)?);
             }
             Statement::Function(function) => {
-                self.functions.push(self.create_function(function)?);
+                let temp = self.create_function(function)?;
+                self.functions.push(temp);
                 self.check_statmenets(&function.statements)?;
             }
             Statement::Return(_) => {}
@@ -346,11 +349,11 @@ impl Typecheker {
         Ok(())
     }
 
-    pub fn check_statmenets(&mut self, statements: &[Statement]) -> Result<(), Error> {
+    pub fn check_statmenets(&mut self, statements: &[Statement]) -> Result<Vec<Error>, Error> {
         let mut iter = statements.iter();
         while let Some(statement) = iter.next() {
             self.check_statmenet(statement)?;
         }
-        Ok(())
+        Ok(self.warnings.clone())
     }
 }

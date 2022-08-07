@@ -29,7 +29,14 @@ fn main() {
                         Err(error) => {
                             eprintln!("{}", error.show(content.as_bytes(), &filename).unwrap());
                         }
-                        _ => {}
+                        Ok(warnings) => {
+                            for warning in warnings.iter() {
+                                println!(
+                                    "{}",
+                                    warning.show(content.as_bytes(), &filename).unwrap()
+                                );
+                            }
+                        }
                     }
                 }
                 Err(error) => {
