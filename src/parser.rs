@@ -339,7 +339,15 @@ impl Parser {
             variable_type = self.consume_type()?;
         }
         self.consume(&[TokenKind::Equal])?;
-        let value = self.expression()?;
+        let mut value = self.expression()?;
+        if variable_type != Type::Unknown {
+            value = Expression::Cast(Cast {
+                expr: Box::new(value.clone()),
+                kind: variable_type.clone(),
+                span: value.span(),
+            });
+        }
+
         self.consume_endline()?;
         Ok(Statement::VariableDeclaration(VariableDeclaration {
             name: identifier.slice,

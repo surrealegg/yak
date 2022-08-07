@@ -3,7 +3,7 @@ use crate::{
     utils::{variant_eq, Span},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum LiteralKind {
     Boolean(bool),
     Char(String),
@@ -12,13 +12,13 @@ pub enum LiteralKind {
     Integer(i64),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Literal {
     pub kind: LiteralKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BinaryKind {
     As,
     Plus,
@@ -72,7 +72,7 @@ impl TryFrom<TokenKind> for BinaryKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum UnaryKind {
     Not,
     Plus,
@@ -92,14 +92,14 @@ impl TryFrom<TokenKind> for UnaryKind {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Unary {
     pub expr: Box<Expression>,
     pub kind: UnaryKind,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Binary {
     pub left: Box<Expression>,
     pub right: Box<Expression>,
@@ -107,27 +107,27 @@ pub struct Binary {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Call {
     pub name: String,
     pub arguments: Vec<Expression>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grouping {
     pub expr: Box<Expression>,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Cast {
     pub expr: Box<Expression>,
     pub kind: Type,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Literal(Literal),
     Binary(Binary),
