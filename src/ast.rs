@@ -42,6 +42,21 @@ pub enum BinaryKind {
     LeftShiftEqual,
 }
 
+impl BinaryKind {
+    pub fn is_assign(&self) -> bool {
+        match self {
+            BinaryKind::Equal
+            | BinaryKind::PlusEqual
+            | BinaryKind::MinusEqual
+            | BinaryKind::AsteriskEqual
+            | BinaryKind::SlashEqual
+            | BinaryKind::RightShiftEqual
+            | BinaryKind::LeftShiftEqual => true,
+            _ => false,
+        }
+    }
+}
+
 impl TryFrom<TokenKind> for BinaryKind {
     type Error = ();
 
@@ -391,20 +406,6 @@ impl Expression {
             }
         }
         return String::new();
-    }
-}
-
-impl Statement {
-    pub fn span(&self) -> Span {
-        match self {
-            Statement::Expression(expr) => expr.span(),
-            Statement::VariableDeclaration(decl) => decl.span,
-            Statement::Break(stat) => stat.span,
-            Statement::Continue(stat) => stat.span,
-            Statement::Prototype(prototype) => prototype.span,
-            Statement::Return(ret) => ret.span,
-            _ => Span::default(),
-        }
     }
 }
 

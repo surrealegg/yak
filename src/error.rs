@@ -18,7 +18,6 @@ pub enum ErrorKind {
     RedefinitionVariable(String),
     VariableNotFound(String),
     BinaryBetweenIncompatibleTypes(Type, Type),
-    DeadCode,
     MismatchedTypes(Type, Type),
     FunctionNotFound(String),
     BreakOutsideLoop,
@@ -28,6 +27,8 @@ pub enum ErrorKind {
     NonPrimitive(Type, Type),
     WrongLabel(String, String),
     CantApplyUnary(UnaryKind, Type),
+    InvalidLeftHandSideAssignment,
+    CantAssignImmutableVariable(String),
 }
 
 impl ToString for ErrorKind {
@@ -57,7 +58,6 @@ impl ToString for ErrorKind {
                     rhs.to_string()
                 )
             }
-            ErrorKind::DeadCode => "dead code after return statement".to_string(),
             ErrorKind::MismatchedTypes(expected, actual) => format!(
                 "mismatched types. expected '{}', but got '{}'",
                 expected.to_string(),
@@ -93,11 +93,17 @@ impl ToString for ErrorKind {
                     kind.to_string()
                 )
             }
+            ErrorKind::InvalidLeftHandSideAssignment => {
+                "invalid left-hand side of assignment".to_string()
+            }
+            ErrorKind::CantAssignImmutableVariable(name) => {
+                format!("cannot assign twice to immutable variable '{}'", name)
+            }
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum ErrorSeverity {
     Warning,
     Error,

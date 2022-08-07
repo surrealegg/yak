@@ -11,8 +11,6 @@ struct StoredVariable {
     pub name: String,
     pub kind: Type,
     pub mutable: bool,
-    pub used: bool,
-    pub mutated: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -24,12 +22,9 @@ struct StoredFunction {
 
 pub struct Typecheker {
     scope: usize,
-    cursor: usize,
     variables: Vec<StoredVariable>,
     functions: Vec<StoredFunction>,
-    warnings: Vec<Error>,
     in_loop: usize,
-    expected_type: Type,
 }
 
 impl Typecheker {
@@ -37,11 +32,8 @@ impl Typecheker {
         Self {
             variables: vec![],
             functions: vec![],
-            warnings: vec![],
             scope: 0,
-            cursor: 0,
             in_loop: 0,
-            expected_type: Type::Unknown,
         }
     }
 
@@ -77,6 +69,28 @@ impl Typecheker {
             Expression::Binary(binary) => {
                 let lhs = self.check_expression(&binary.left)?;
                 let rhs = self.check_expression(&binary.right)?;
+
+                if binary.kind.is_assign() {
+                    let name = binary.left.get_variable_name();
+                    if name.is_empty() {
+                        return Err(Error {
+                            kind: ErrorKind::InvalidLeftHandSideAssignment,
+                            severity: ErrorSeverity::Error,
+                            span: binary.span,
+                        });
+                    }
+
+                    if let Some(variable) = self.find_variable_by_name(&name) {
+                        if !variable.mutable {
+                            return Err(Error {
+                                kind: ErrorKind::CantAssignImmutableVariable(name),
+                                severity: ErrorSeverity::Error,
+                                span: binary.span,
+                            });
+                        }
+                    }
+                }
+
                 if lhs.equal(&rhs) {
                     Ok(lhs)
                 } else {
@@ -247,8 +261,6 @@ impl Typecheker {
             name: decl.name.clone(),
             kind,
             mutable: decl.mutable,
-            used: false,
-            mutated: false,
         })
     }
 
