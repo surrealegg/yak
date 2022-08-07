@@ -125,10 +125,6 @@ impl Typecheker {
                         }
                     }
 
-                    // for item in call.arguments.iter() {
-                    //     let item_type = self.check_expression(item)?;
-                    //     if let Some(param) = function.params.get(index)
-                    // }
                     Ok(function.return_kind.clone())
                 } else {
                     Err(Error {
@@ -190,8 +186,8 @@ impl Typecheker {
 
     fn create_function(&self, function: &Function) -> Result<StoredFunction, Error> {
         let returned_kind = self.get_statement_return_type(&function.statements)?;
-        if !function.prototype.return_type.equal(&Type::Unknown)
-            && !returned_kind.equal(&function.prototype.return_type)
+        if function.prototype.return_type != Type::Unknown
+            && !function.prototype.return_type.equal(&returned_kind)
         {
             return Err(Error {
                 kind: ErrorKind::MismatchedTypes(
@@ -244,87 +240,78 @@ impl Typecheker {
         self.scope -= 1;
     }
 
+    fn check_statmenet(&mut self, statement: &Statement) -> Result<(), Error> {
+        match statement {
+            Statement::Expression(expression) => {
+                self.check_expression(expression)?;
+            }
+            Statement::VariableDeclaration(decl) => {
+                self.variables.push(self.create_variable(decl)?);
+            }
+            Statement::Block(block) | Statement::Loop(block) => {
+                self.enter_scope();
+                self.check_statmenets(&block.statements)?;
+                self.leave_scope();
+            }
+            Statement::While(while_block) => {
+                let check = self.check_expression(&while_block.expression)?;
+                if check != Type::Bool {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchedTypes(Type::Bool, check),
+                        severity: ErrorSeverity::Error,
+                        span: while_block.expression.span(),
+                    });
+                }
+                self.in_loop += 1;
+                self.check_statmenets(&while_block.block)?;
+                self.in_loop -= 1;
+            }
+            Statement::Break(break_statement) => {
+                if self.in_loop == 0 {
+                    return Err(Error {
+                        kind: ErrorKind::BreakOutsideLoop,
+                        severity: ErrorSeverity::Error,
+                        span: break_statement.span,
+                    });
+                }
+            }
+            Statement::Continue(continue_statement) => {
+                if self.in_loop == 0 {
+                    return Err(Error {
+                        kind: ErrorKind::ContinueOutsideLoop,
+                        severity: ErrorSeverity::Error,
+                        span: continue_statement.span,
+                    });
+                }
+            }
+            Statement::If(if_statement) => {
+                let check = self.check_expression(&if_statement.expression)?;
+                if check != Type::Bool {
+                    return Err(Error {
+                        kind: ErrorKind::MismatchedTypes(Type::Bool, check),
+                        severity: ErrorSeverity::Error,
+                        span: if_statement.expression.span(),
+                    });
+                }
+                self.check_statmenets(&if_statement.true_block)?;
+                self.check_statmenets(&if_statement.else_block)?;
+            }
+            Statement::Prototype(prototype) => {
+                self.functions.push(self.create_prototype(prototype)?);
+            }
+            Statement::Function(function) => {
+                self.functions.push(self.create_function(function)?);
+                self.check_statmenets(&function.statements)?;
+            }
+            Statement::Return(_) => {}
+        }
+        Ok(())
+    }
+
     pub fn check_statmenets(&mut self, statements: &[Statement]) -> Result<(), Error> {
         let mut iter = statements.iter();
         while let Some(statement) = iter.next() {
-            match statement {
-                Statement::Expression(expression) => {
-                    self.check_expression(expression)?;
-                }
-                Statement::VariableDeclaration(decl) => {
-                    self.variables.push(self.create_variable(decl)?);
-                }
-                Statement::Block(block) | Statement::Loop(block) => {
-                    self.enter_scope();
-                    self.check_statmenets(&block.statements)?;
-                    self.leave_scope();
-                }
-                Statement::While(while_block) => {
-                    let check = self.check_expression(&while_block.expression)?;
-                    if check != Type::Bool {
-                        return Err(Error {
-                            kind: ErrorKind::MismatchedTypes(Type::Bool, check),
-                            severity: ErrorSeverity::Error,
-                            span: while_block.expression.span(),
-                        });
-                    }
-                    self.in_loop += 1;
-                    self.check_statmenets(&while_block.block)?;
-                    self.in_loop -= 1;
-                }
-                Statement::Break(break_statement) => {
-                    if self.in_loop == 0 {
-                        return Err(Error {
-                            kind: ErrorKind::BreakOutsideLoop,
-                            severity: ErrorSeverity::Error,
-                            span: break_statement.span,
-                        });
-                    }
-                }
-                Statement::Continue(continue_statement) => {
-                    if self.in_loop == 0 {
-                        return Err(Error {
-                            kind: ErrorKind::ContinueOutsideLoop,
-                            severity: ErrorSeverity::Error,
-                            span: continue_statement.span,
-                        });
-                    }
-                }
-                Statement::If(if_statement) => {
-                    let check = self.check_expression(&if_statement.expression)?;
-                    if check != Type::Bool {
-                        return Err(Error {
-                            kind: ErrorKind::MismatchedTypes(Type::Bool, check),
-                            severity: ErrorSeverity::Error,
-                            span: if_statement.expression.span(),
-                        });
-                    }
-                    self.check_statmenets(&if_statement.true_block)?;
-                    self.check_statmenets(&if_statement.else_block)?;
-                }
-                Statement::Prototype(prototype) => {
-                    self.functions.push(self.create_prototype(prototype)?);
-                }
-                Statement::Function(function) => {
-                    self.functions.push(self.create_function(function)?);
-                    self.expected_type = function.prototype.return_type.clone();
-                    self.check_statmenets(&function.statements)?;
-                    self.expected_type = Type::Unknown;
-                }
-                Statement::Return(return_type) => {
-                    let expression_type = self.check_expression(&return_type.expression)?;
-                    if expression_type != self.expected_type {
-                        return Err(Error {
-                            kind: ErrorKind::MismatchedTypes(
-                                self.expected_type.clone(),
-                                expression_type,
-                            ),
-                            severity: ErrorSeverity::Error,
-                            span: return_type.expression.span(),
-                        });
-                    }
-                }
-            }
+            self.check_statmenet(statement)?;
         }
         Ok(())
     }
