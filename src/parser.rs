@@ -494,6 +494,7 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Statement, Error> {
         self.ignore_whitespace();
+        self.start = self.current_span.start;
         match self.peek_kind(0) {
             TokenKind::Extern => {
                 let prototype = self.prototype(true)?;
@@ -543,7 +544,6 @@ impl Parser {
             if self.is_eof() {
                 break;
             }
-            self.start = self.current_span.start;
             let statement = self.statement()?;
             result.push(statement);
         }
