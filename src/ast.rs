@@ -92,6 +92,27 @@ impl TryFrom<TokenKind> for UnaryKind {
     }
 }
 
+impl UnaryKind {
+    pub fn can_apply(&self, kind: &Type) -> bool {
+        match self {
+            UnaryKind::Not if kind != &Type::Bool => false,
+            UnaryKind::Plus | UnaryKind::Minus if !kind.is_numeric() => false,
+            _ => true,
+        }
+    }
+}
+
+impl ToString for UnaryKind {
+    fn to_string(&self) -> String {
+        match self {
+            UnaryKind::Not => "not",
+            UnaryKind::Plus => "+",
+            UnaryKind::Minus => "-",
+        }
+        .to_string()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Unary {
     pub expr: Box<Expression>,
@@ -234,6 +255,24 @@ impl Type {
         match (self, other) {
             (Type::Raw(inner_a), Type::Raw(inner_b)) => inner_a.equal(inner_b),
             (a, b) => variant_eq(a, b),
+        }
+    }
+
+    pub fn is_numeric(&self) -> bool {
+        match self {
+            Type::I8
+            | Type::U8
+            | Type::I16
+            | Type::U16
+            | Type::I32
+            | Type::U32
+            | Type::I64
+            | Type::U64
+            | Type::F32
+            | Type::F64
+            | Type::CInt
+            | Type::USize => true,
+            _ => false,
         }
     }
 

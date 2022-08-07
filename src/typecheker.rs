@@ -85,7 +85,18 @@ impl Typecheker {
                     })
                 }
             }
-            Expression::Unary(unary) => self.check_expression(&unary.expr),
+            Expression::Unary(unary) => {
+                let expr = self.check_expression(&unary.expr)?;
+                if unary.kind.can_apply(&expr) {
+                    Ok(expr)
+                } else {
+                    Err(Error {
+                        kind: ErrorKind::CantApplyUnary(unary.kind.clone(), expr),
+                        severity: ErrorSeverity::Error,
+                        span: unary.span,
+                    })
+                }
+            }
             Expression::Call(call) => {
                 if let Some(function) = self.find_function_by_name(&call.name) {
                     if call.arguments.len() != function.params.len() {

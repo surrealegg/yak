@@ -1,4 +1,8 @@
-use crate::{ast::Type, tokens::TokenKind, utils::Span};
+use crate::{
+    ast::{Type, UnaryKind},
+    tokens::TokenKind,
+    utils::Span,
+};
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
@@ -23,6 +27,7 @@ pub enum ErrorKind {
     RedefinedName(String),
     NonPrimitive(Type, Type),
     WrongLabel(String, String),
+    CantApplyUnary(UnaryKind, Type),
 }
 
 impl ToString for ErrorKind {
@@ -79,6 +84,13 @@ impl ToString for ErrorKind {
                 format!(
                     "wrong parameter name in argument label. expected '{}', but got '{}'",
                     expected, actual
+                )
+            }
+            ErrorKind::CantApplyUnary(op, kind) => {
+                format!(
+                    "cannot apply unary operator '{}' to type '{}'",
+                    op.to_string(),
+                    kind.to_string()
                 )
             }
         }
