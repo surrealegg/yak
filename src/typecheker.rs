@@ -79,7 +79,7 @@ impl Typecheker {
                     Ok(lhs)
                 } else {
                     Err(Error {
-                        kind: ErrorKind::BinaryBetweenIncompatibleTypes,
+                        kind: ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs),
                         severity: ErrorSeverity::Error,
                         span: binary.span,
                     })

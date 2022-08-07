@@ -13,7 +13,7 @@ pub enum ErrorKind {
     ExpectedAnItem,
     RedefinitionVariable(String),
     VariableNotFound(String),
-    BinaryBetweenIncompatibleTypes,
+    BinaryBetweenIncompatibleTypes(Type, Type),
     DeadCode,
     MismatchedTypes(Type, Type),
     FunctionNotFound(String),
@@ -45,8 +45,12 @@ impl ToString for ErrorKind {
                 format!("redefinition of variable '{}'", variable)
             }
             ErrorKind::VariableNotFound(variable) => format!("variable '{}' not found", variable),
-            ErrorKind::BinaryBetweenIncompatibleTypes => {
-                "binary arithmetic operation between incompatible types".to_string()
+            ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs) => {
+                format!(
+                    "binary arithmetic operation between incompatible types ('{}', '{}')",
+                    lhs.to_string(),
+                    rhs.to_string()
+                )
             }
             ErrorKind::DeadCode => "dead code after return statement".to_string(),
             ErrorKind::MismatchedTypes(expected, actual) => format!(
