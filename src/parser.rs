@@ -1,6 +1,6 @@
 use crate::{
     ast::{
-        Binary, BinaryKind, Block, Break, Call, Continue, Expression, Function, Grouping, If,
+        Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function, Grouping, If,
         Literal, LiteralKind, Param, Prototype, Return, Statement, Type, Unary, UnaryKind,
         VariableDeclaration, While,
     },
@@ -93,6 +93,11 @@ impl Parser {
         }
     }
 
+    fn consume_endline(&mut self) -> Result<(), Error> {
+        self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+        Ok(())
+    }
+
     fn matches(&mut self, kinds: &[TokenKind]) -> Option<Token> {
         for kind in kinds.iter() {
             if self.check(kind.clone()) {
@@ -183,6 +188,7 @@ impl Parser {
         } else {
             let literal = self.literal()?;
             self.advance();
+
             Ok(literal)
         }
     }
@@ -311,7 +317,17 @@ impl Parser {
 
     fn expression(&mut self) -> Result<Expression, Error> {
         self.must_be_in_function()?;
-        self.comparison()
+        let expr = self.comparison()?;
+        if self.matches_bool(&[TokenKind::As]) {
+            let kind = self.consume_type()?;
+            Ok(Expression::Cast(Cast {
+                expr: Box::new(expr),
+                kind,
+                span: self.span(),
+            }))
+        } else {
+            Ok(expr)
+        }
     }
 
     fn variable_declaration(&mut self, mutable: bool) -> Result<Statement, Error> {
@@ -324,7 +340,7 @@ impl Parser {
         }
         self.consume(&[TokenKind::Equal])?;
         let value = self.expression()?;
-        self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+        self.consume_endline()?;
         Ok(Statement::VariableDeclaration(VariableDeclaration {
             name: identifier.slice,
             variable_type,
@@ -338,16 +354,17 @@ impl Parser {
         self.must_be_in_function()?;
         self.consume(&[TokenKind::CurlyBracketOpen])?;
         let mut statements = vec![];
-        loop {
-            statements.push(self.statement()?);
-            self.ignore_whitespace();
-            if self.check(TokenKind::CurlyBracketClose) || self.check(TokenKind::EndOfFile) {
-                break;
+        self.ignore_whitespace();
+        if !self.check(TokenKind::CurlyBracketClose) {
+            loop {
+                statements.push(self.statement()?);
+                self.ignore_whitespace();
+                if self.check(TokenKind::CurlyBracketClose) || self.check(TokenKind::EndOfFile) {
+                    break;
+                }
             }
         }
-
         self.consume(&[TokenKind::CurlyBracketClose])?;
-
         Ok(statements)
     }
 
@@ -406,7 +423,7 @@ impl Parser {
             TokenKind::USize => Type::USize,
             TokenKind::Void => Type::Void,
             TokenKind::Char => Type::Char,
-            TokenKind::String => Type::String,
+            TokenKind::StringType => Type::String,
             TokenKind::Raw => {
                 self.advance();
                 let kind = self.consume_type()?;
@@ -449,10 +466,8 @@ impl Parser {
             }
         }
 
-        println!("{:?}", params);
-
         self.consume(&[TokenKind::ParenthesesClose])?;
-        let mut return_type = Type::Void;
+        let mut return_type = Type::Unknown;
         if self.matches_bool(&[TokenKind::Arrow]) {
             return_type = self.consume_type()?;
         }
@@ -482,7 +497,7 @@ impl Parser {
         match self.peek_kind(0) {
             TokenKind::Extern => {
                 let prototype = self.prototype(true)?;
-                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                self.consume_endline()?;
                 Ok(Statement::Prototype(prototype))
             }
             TokenKind::Function => self.function(),
@@ -497,24 +512,26 @@ impl Parser {
             TokenKind::If => self.if_statement(),
             TokenKind::Return => {
                 self.advance();
+                let expression = self.expression()?;
+                self.consume_endline()?;
                 Ok(Statement::Return(Return {
-                    expression: self.expression()?,
+                    expression,
                     span: self.span(),
                 }))
             }
             TokenKind::Break => {
                 self.advance();
-                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                self.consume_endline()?;
                 Ok(Statement::Break(Break { span: self.span() }))
             }
             TokenKind::Continue => {
                 self.advance();
-                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                self.consume_endline()?;
                 Ok(Statement::Continue(Continue { span: self.span() }))
             }
             _ => {
                 let result = Statement::Expression(self.expression()?);
-                self.consume(&[TokenKind::EndLine, TokenKind::Semicolon])?;
+                self.consume_endline()?;
                 Ok(result)
             }
         }

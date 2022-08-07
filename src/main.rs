@@ -3,11 +3,14 @@ use std::{env, fs};
 use lexer::Lexer;
 use parser::Parser;
 
+use crate::typecheker::Typecheker;
+
 mod ast;
 mod error;
 mod lexer;
 mod parser;
 mod tokens;
+mod typecheker;
 mod utils;
 
 fn main() {
@@ -18,22 +21,15 @@ fn main() {
 
     match lexer.lex() {
         Ok(tokens) => {
-            println!("Tokens:");
-            for token in tokens.iter() {
-                let line = token.span.show(content.as_bytes(), "\u{001b}[33m");
-                println!("Kind: {:?}", token.kind);
-                println!("{}", line.unwrap());
-                println!("-----");
-            }
-
             let mut parser = Parser::new(tokens);
             match parser.parse() {
                 Ok(ast) => {
-                    println!("AST:");
-                    for item in ast.iter() {
-                        let line = item.span().show(content.as_bytes(), "\u{001b}[33m");
-                        println!("{:#?}", item);
-                        println!("{}", line.unwrap());
+                    let mut typecheker = Typecheker::new();
+                    match typecheker.check_statmenets(&ast) {
+                        Err(error) => {
+                            eprintln!("{}", error.show(content.as_bytes(), &filename).unwrap());
+                        }
+                        _ => {}
                     }
                 }
                 Err(error) => {

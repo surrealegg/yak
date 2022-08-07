@@ -121,12 +121,20 @@ pub struct Grouping {
 }
 
 #[derive(Debug)]
+pub struct Cast {
+    pub expr: Box<Expression>,
+    pub kind: Type,
+    pub span: Span,
+}
+
+#[derive(Debug)]
 pub enum Expression {
     Literal(Literal),
     Binary(Binary),
     Unary(Unary),
     Call(Call),
     Grouping(Grouping),
+    Cast(Cast),
 }
 
 #[derive(Debug)]
@@ -166,7 +174,7 @@ pub struct If {
     pub else_block: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Type {
     I8,
     U8,
@@ -189,12 +197,63 @@ pub enum Type {
     Raw(Box<Type>),
 }
 
+impl ToString for Type {
+    fn to_string(&self) -> String {
+        match self {
+            Type::I8 => "i8".to_string(),
+            Type::U8 => "u8".to_string(),
+            Type::I16 => "i16".to_string(),
+            Type::U16 => "u16".to_string(),
+            Type::I32 => "i32".to_string(),
+            Type::U32 => "u32".to_string(),
+            Type::I64 => "i64".to_string(),
+            Type::U64 => "u64".to_string(),
+            Type::F32 => "f32".to_string(),
+            Type::F64 => "f64".to_string(),
+            Type::Bool => "bool".to_string(),
+            Type::CInt => "c_int".to_string(),
+            Type::CChar => "c_char".to_string(),
+            Type::USize => "usize".to_string(),
+            Type::Void => "void".to_string(),
+            Type::Char => "char".to_string(),
+            Type::String => "String".to_string(),
+            Type::Unknown => "unknown".to_string(),
+            Type::Raw(inner) => format!("raw {}", inner.to_string()),
+        }
+    }
+}
+
 impl Type {
     pub fn equal(&self, other: &Type) -> bool {
         match (self, other) {
             (Type::Raw(inner_a), Type::Raw(inner_b)) => inner_a.equal(inner_b),
             (a, b) => variant_eq(a, b),
         }
+    }
+
+    pub fn is_primitive(&self) -> bool {
+        match self {
+            Type::I8
+            | Type::U8
+            | Type::I16
+            | Type::U16
+            | Type::I32
+            | Type::U32
+            | Type::I64
+            | Type::U64
+            | Type::F32
+            | Type::F64
+            | Type::Bool
+            | Type::CInt
+            | Type::CChar
+            | Type::USize
+            | Type::Char => true,
+            _ => false,
+        }
+    }
+
+    pub fn can_cast(&self, other: &Type) -> bool {
+        self.is_primitive() && other.is_primitive()
     }
 }
 
@@ -219,13 +278,13 @@ impl TryFrom<TokenKind> for Type {
             TokenKind::USize => Ok(Type::USize),
             TokenKind::Void => Ok(Type::Void),
             TokenKind::Char => Ok(Type::Char),
-            TokenKind::String => Ok(Type::String),
+            TokenKind::String => Ok(Type::Raw(Box::new(Type::CChar))),
             _ => Err(()),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Param {
     pub kind: Type,
     pub name: String,
@@ -276,6 +335,7 @@ impl Expression {
             Expression::Unary(unary) => unary.span,
             Expression::Call(call) => call.span,
             Expression::Grouping(grouping) => grouping.span,
+            Expression::Cast(cast) => cast.span,
         }
     }
 }

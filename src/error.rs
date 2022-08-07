@@ -1,4 +1,4 @@
-use crate::{tokens::TokenKind, utils::Span};
+use crate::{ast::Type, tokens::TokenKind, utils::Span};
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
@@ -11,6 +11,17 @@ pub enum ErrorKind {
     CPPInteropNotSupported,
     ExpectedType,
     ExpectedAnItem,
+    RedefinitionVariable(String),
+    VariableNotFound(String),
+    BinaryBetweenIncompatibleTypes,
+    DeadCode,
+    MismatchedTypes(Type, Type),
+    FunctionNotFound(String),
+    BreakOutsideLoop,
+    ContinueOutsideLoop,
+    FunctionArgumentCountMismatch(usize, usize),
+    RedefinedName(String),
+    NonPrimitive(Type, Type),
 }
 
 impl ToString for ErrorKind {
@@ -29,6 +40,36 @@ impl ToString for ErrorKind {
             }
             ErrorKind::ExpectedType => "expected type".to_string(),
             ErrorKind::ExpectedAnItem => "expected an item".to_string(),
+            ErrorKind::RedefinitionVariable(variable) => {
+                format!("redefinition of variable '{}'", variable)
+            }
+            ErrorKind::VariableNotFound(variable) => format!("variable '{}' not found", variable),
+            ErrorKind::BinaryBetweenIncompatibleTypes => {
+                "binary arithmetic operation between incompatible types".to_string()
+            }
+            ErrorKind::DeadCode => "dead code after return statement".to_string(),
+            ErrorKind::MismatchedTypes(expected, actual) => format!(
+                "mismatched types. expected '{}', but got '{}'",
+                expected.to_string(),
+                actual.to_string()
+            ),
+            ErrorKind::FunctionNotFound(function) => format!("function '{}' not found", function),
+            ErrorKind::BreakOutsideLoop => "'break' outside of a loop".to_string(),
+            ErrorKind::ContinueOutsideLoop => "'continue' outside of a loop".to_string(),
+            ErrorKind::FunctionArgumentCountMismatch(expected, actual) => format!(
+                "this function takes {} arguments but {} argument was supplied",
+                expected, actual
+            ),
+            ErrorKind::RedefinedName(name) => {
+                format!("the name '{}' is defined multiple times", name)
+            }
+            ErrorKind::NonPrimitive(src, target) => {
+                format!(
+                    "non-primitive cast: '{}' as '{}'",
+                    src.to_string(),
+                    target.to_string()
+                )
+            }
         }
     }
 }

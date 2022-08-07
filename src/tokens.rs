@@ -21,6 +21,7 @@ pub enum TokenKind {
     Void,
     Char,
     String,
+    StringType,
 
     // Keywords
     Function,
@@ -167,6 +168,7 @@ impl ToString for TokenKind {
                 TokenKind::Break => "break",
                 TokenKind::Continue => "continue",
                 TokenKind::Cpp => "cpp",
+                TokenKind::StringType => "String",
             }
         )
     }
@@ -283,6 +285,7 @@ impl TokenKind {
             "f32" => TokenKind::F32,
             "f64" => TokenKind::F64,
             "bool" => TokenKind::Bool,
+            "String" => TokenKind::StringType,
             "c_int" => TokenKind::CInt,
             "c_char" => TokenKind::CChar,
             "usize" => TokenKind::USize,
