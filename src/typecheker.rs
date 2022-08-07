@@ -46,7 +46,9 @@ impl Typecheker {
     }
 
     fn find_variable_by_name(&self, name: &str) -> Option<&StoredVariable> {
-        self.variables.iter().find(|item| item.name == name)
+        self.variables
+            .iter()
+            .find(|item| item.name == name && self.scope <= item.scope)
     }
 
     fn find_function_by_name(&self, name: &str) -> Option<&StoredFunction> {
@@ -219,6 +221,18 @@ impl Typecheker {
     }
 
     fn create_variable(&self, decl: &VariableDeclaration) -> Result<StoredVariable, Error> {
+        if let Some(_) = self
+            .variables
+            .iter()
+            .find(|item| item.name == decl.name && self.scope == item.scope)
+        {
+            return Err(Error {
+                kind: ErrorKind::RedefinitionVariable(decl.name.clone()),
+                severity: ErrorSeverity::Error,
+                span: decl.span,
+            });
+        }
+
         let kind = self.check_expression(&decl.value)?;
         if decl.variable_type != Type::Unknown && kind != decl.variable_type {
             return Err(Error {
