@@ -108,9 +108,15 @@ pub struct Binary {
 }
 
 #[derive(Debug, Clone)]
+pub struct Argument {
+    pub name: String,
+    pub value: Expression,
+}
+
+#[derive(Debug, Clone)]
 pub struct Call {
     pub name: String,
-    pub arguments: Vec<Expression>,
+    pub arguments: Vec<Argument>,
     pub span: Span,
 }
 
@@ -337,6 +343,15 @@ impl Expression {
             Expression::Grouping(grouping) => grouping.span,
             Expression::Cast(cast) => cast.span,
         }
+    }
+
+    pub fn get_variable_name(&self) -> String {
+        if let Expression::Literal(literal) = self {
+            if let LiteralKind::Identifier(name) = &literal.kind {
+                return name.clone();
+            }
+        }
+        return String::new();
     }
 }
 

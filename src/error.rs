@@ -22,6 +22,7 @@ pub enum ErrorKind {
     FunctionArgumentCountMismatch(usize, usize),
     RedefinedName(String),
     NonPrimitive(Type, Type),
+    WrongLabel(String, String),
 }
 
 impl ToString for ErrorKind {
@@ -68,6 +69,12 @@ impl ToString for ErrorKind {
                     "non-primitive cast: '{}' as '{}'",
                     src.to_string(),
                     target.to_string()
+                )
+            }
+            ErrorKind::WrongLabel(expected, actual) => {
+                format!(
+                    "wrong parameter name in argument label. expected '{}', but got '{}'",
+                    expected, actual
                 )
             }
         }

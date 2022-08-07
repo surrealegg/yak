@@ -100,13 +100,26 @@ impl Typecheker {
                     }
                     for i in 0..call.arguments.len() {
                         let expr = &call.arguments[i];
-                        let item_type = self.check_expression(expr)?;
+                        let item_type = self.check_expression(&expr.value)?;
                         if let Some(param) = function.params.get(i) {
                             if item_type != param.kind {
                                 return Err(Error {
                                     kind: ErrorKind::MismatchedTypes(param.kind.clone(), item_type),
                                     severity: ErrorSeverity::Error,
-                                    span: expr.span(),
+                                    span: expr.value.span(),
+                                });
+                            }
+                            if (!param.anon || expr.name != "")
+                                && expr.name != param.name
+                                && expr.value.get_variable_name() != param.name
+                            {
+                                return Err(Error {
+                                    kind: ErrorKind::WrongLabel(
+                                        param.name.clone(),
+                                        expr.name.clone(),
+                                    ),
+                                    severity: ErrorSeverity::Error,
+                                    span: expr.value.span(),
                                 });
                             }
                         }

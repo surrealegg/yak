@@ -1,8 +1,8 @@
 use crate::{
     ast::{
-        Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function, Grouping, If,
-        Literal, LiteralKind, Param, Prototype, Return, Statement, Type, Unary, UnaryKind,
-        VariableDeclaration, While,
+        Argument, Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function,
+        Grouping, If, Literal, LiteralKind, Param, Prototype, Return, Statement, Type, Unary,
+        UnaryKind, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -199,7 +199,18 @@ impl Parser {
                 let mut arguments = vec![];
                 if !self.check(TokenKind::ParenthesesClose) {
                     loop {
-                        arguments.push(self.expression()?);
+                        let mut name = String::new();
+                        let mut expr = self.expression()?;
+                        if let Expression::Literal(literal) = &expr {
+                            if let LiteralKind::Identifier(identifier) = &literal.kind {
+                                if self.matches_bool(&[TokenKind::Colon]) {
+                                    name = identifier.clone();
+                                    expr = self.expression()?;
+                                }
+                            }
+                        }
+
+                        arguments.push(Argument { name, value: expr });
                         if !self.matches_bool(&[TokenKind::Comma]) {
                             break;
                         }

@@ -1,10 +1,8 @@
 extern function write(anon io: i32, anon buffer: raw c_char, anon count: usize) -> usize
 
 function main() {
-    while true {
-        let length: usize = 13
-        let io: i32 = 1;
-        let message = "Hello World!\n"
-        write(io, message, length)
-    }
+    let length: usize = 1
+    let io: i32 = 1;
+    let message = "Hello World!\n"
+    write(io, message, length)
 }
