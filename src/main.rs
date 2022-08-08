@@ -5,15 +5,15 @@ use inkwell::{context::Context, passes::PassManager, OptimizationLevel};
 use lexer::Lexer;
 use parser::Parser;
 
-use crate::typecheker::Typecheker;
+use crate::linter::Linter;
 
 mod ast;
 mod codegen;
 mod error;
 mod lexer;
+mod linter;
 mod parser;
 mod tokens;
-mod typecheker;
 mod utils;
 
 fn main() {
@@ -27,8 +27,8 @@ fn main() {
             let mut parser = Parser::new(tokens);
             match parser.parse() {
                 Ok(ast) => {
-                    let mut typecheker = Typecheker::new();
-                    match typecheker.check_statmenets(&ast) {
+                    let mut linter = Linter::new();
+                    match linter.check_statmenets(&ast) {
                         Err(error) => {
                             eprintln!("{}", error.show(content.as_bytes(), &filename).unwrap());
                         }

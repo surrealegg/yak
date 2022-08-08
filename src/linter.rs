@@ -21,7 +21,7 @@ struct StoredFunction {
     pub params: Vec<Param>,
 }
 
-pub struct Typecheker {
+pub struct Linter {
     scope: usize,
     variables: Vec<StoredVariable>,
     functions: Vec<StoredFunction>,
@@ -29,7 +29,7 @@ pub struct Typecheker {
     warnings: Vec<Error>,
 }
 
-impl Typecheker {
+impl Linter {
     pub fn new() -> Self {
         Self {
             variables: vec![],
