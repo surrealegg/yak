@@ -1,0 +1,10 @@
+extern function strlen(value: raw c_char) -> usize
+extern function write(anon io: i64, anon buffer: raw c_char, anon count: usize) -> usize
+
+function print_string(anon value: raw c_char) {
+    write(1, value, strlen(value));    
+}
+
+function main() {
+    print_string("Hello Friends! :^)\n")
+}

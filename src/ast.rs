@@ -179,7 +179,7 @@ pub enum Expression {
     Cast(Cast),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VariableDeclaration {
     pub name: String,
     pub value: Expression,
@@ -188,28 +188,28 @@ pub struct VariableDeclaration {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct While {
     pub expression: Expression,
     pub block: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Break {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Continue {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct If {
     pub expression: Expression,
     pub true_block: Vec<Statement>,
@@ -351,7 +351,7 @@ pub struct Param {
     pub anon: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Prototype {
     pub params: Vec<Param>,
     pub return_type: Type,
@@ -360,19 +360,19 @@ pub struct Prototype {
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
     pub prototype: Prototype,
     pub statements: Vec<Statement>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Return {
     pub expression: Expression,
     pub span: Span,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),

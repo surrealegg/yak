@@ -1,0 +1,9 @@
+extern function printf(anon format: raw c_char, anon number: i64) -> usize
+
+function main() {
+    mut x = 0;
+    while x < 10 {
+        printf("%d\n", x);
+        x += 1;
+    }
+}

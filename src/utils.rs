@@ -97,6 +97,30 @@ pub(crate) fn is_space(chr: u8) -> bool {
     chr == b' ' || chr == b'\t' || chr == b'\r'
 }
 
+pub(crate) fn unescape_string(input: &str) -> String {
+    let mut result = String::new();
+    let mut it = input.chars();
+
+    while let Some(char) = it.next() {
+        if char == '\\' {
+            match it.next() {
+                Some('n') => result.push('\n'),
+                Some('t') => result.push('\t'),
+                Some('r') => result.push('\r'),
+                Some(rest) => {
+                    result.push('\\');
+                    result.push(rest);
+                }
+                _ => {}
+            }
+        } else {
+            result.push(char);
+        }
+    }
+
+    result
+}
+
 pub(crate) fn obtain_ranges(str: &[u8]) -> Vec<Range<usize>> {
     let mut result = vec![];
     let mut idx = 0;

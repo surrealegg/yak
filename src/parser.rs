@@ -6,7 +6,7 @@ use crate::{
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
-    utils::Span,
+    utils::{unescape_string, Span},
 };
 
 pub struct Parser {
@@ -156,7 +156,7 @@ impl Parser {
                     LiteralKind::Char(token.slice[1..token.slice.len() - 1].to_string())
                 }
                 TokenKind::String => {
-                    LiteralKind::String(token.slice[1..token.slice.len() - 1].to_string())
+                    LiteralKind::String(unescape_string(&token.slice[1..token.slice.len() - 1]))
                 }
                 TokenKind::Identifier => LiteralKind::Identifier(token.slice.clone()),
                 TokenKind::IntegerNumber => LiteralKind::Integer(

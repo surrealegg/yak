@@ -1,6 +1,7 @@
 use crate::{
     ast::{
-        Expression, Function, LiteralKind, Param, Prototype, Statement, Type, VariableDeclaration,
+        BinaryKind, Expression, Function, LiteralKind, Param, Prototype, Statement, Type,
+        VariableDeclaration,
     },
     error::{Error, ErrorKind, ErrorSeverity},
 };
@@ -42,7 +43,7 @@ impl Typecheker {
     fn find_variable_by_name(&self, name: &str) -> Option<&StoredVariable> {
         self.variables
             .iter()
-            .find(|item| item.name == name && self.scope <= item.scope)
+            .find(|item| item.name == name && self.scope >= item.scope)
     }
 
     fn find_function_by_name(&self, name: &str) -> Option<&StoredFunction> {
@@ -94,7 +95,15 @@ impl Typecheker {
                 }
 
                 if lhs.equal(&rhs) {
-                    Ok(lhs)
+                    Ok(match binary.kind {
+                        BinaryKind::DoubleEqual
+                        | BinaryKind::BangEqual
+                        | BinaryKind::Great
+                        | BinaryKind::GreatEqual
+                        | BinaryKind::Less
+                        | BinaryKind::LessEqual => Type::Bool,
+                        _ => lhs,
+                    })
                 } else {
                     Err(Error {
                         kind: ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs),
@@ -214,7 +223,18 @@ impl Typecheker {
         }
     }
 
-    fn create_function(&mut self, function: &Function) -> Result<StoredFunction, Error> {
+    fn create_function(&mut self, function: &Function) -> Result<Type, Error> {
+        let prototype = self.create_prototype(&function.prototype)?;
+        for item in prototype.params.iter() {
+            self.variables.push(StoredVariable {
+                scope: self.scope,
+                name: item.name.clone(),
+                kind: item.kind.clone(),
+                mutable: true,
+            });
+        }
+
+        self.functions.push(prototype);
         let returned_kind = self.get_statement_return_type(&function.statements)?;
         if function.prototype.return_type != Type::Unknown
             && !function.prototype.return_type.equal(&returned_kind)
@@ -229,11 +249,7 @@ impl Typecheker {
             });
         }
 
-        Ok(StoredFunction {
-            name: function.prototype.name.clone(),
-            return_kind: returned_kind,
-            params: function.prototype.params.clone(),
-        })
+        Ok(returned_kind)
     }
 
     fn create_variable(&self, decl: &VariableDeclaration) -> Result<StoredVariable, Error> {
@@ -280,18 +296,34 @@ impl Typecheker {
         self.scope -= 1;
     }
 
-    fn check_statmenet(&mut self, statement: &Statement) -> Result<(), Error> {
+    fn check_statmenet(&mut self, statement: &Statement) -> Result<Statement, Error> {
         match statement {
             Statement::Expression(expression) => {
                 self.check_expression(expression)?;
+                Ok(Statement::Expression(expression.clone()))
             }
             Statement::VariableDeclaration(decl) => {
-                self.variables.push(self.create_variable(decl)?);
+                let variable = self.create_variable(decl)?;
+                let kind = variable.kind.clone();
+                self.variables.push(variable);
+                let result = Statement::VariableDeclaration(VariableDeclaration {
+                    mutable: decl.mutable,
+                    name: decl.name.clone(),
+                    span: decl.span,
+                    value: decl.value.clone(),
+                    variable_type: kind,
+                });
+                Ok(result)
             }
-            Statement::Block(block) | Statement::Loop(block) => {
-                self.enter_scope();
+            Statement::Block(block) => {
                 self.check_statmenets(&block.statements)?;
-                self.leave_scope();
+                Ok(Statement::Block(block.clone()))
+            }
+            Statement::Loop(block) => {
+                self.in_loop += 1;
+                self.check_statmenets(&block.statements)?;
+                self.in_loop -= 1;
+                Ok(Statement::Loop(block.clone()))
             }
             Statement::While(while_block) => {
                 let check = self.check_expression(&while_block.expression)?;
@@ -305,6 +337,7 @@ impl Typecheker {
                 self.in_loop += 1;
                 self.check_statmenets(&while_block.block)?;
                 self.in_loop -= 1;
+                Ok(Statement::While(while_block.clone()))
             }
             Statement::Break(break_statement) => {
                 if self.in_loop == 0 {
@@ -314,6 +347,7 @@ impl Typecheker {
                         span: break_statement.span,
                     });
                 }
+                Ok(Statement::Break(break_statement.clone()))
             }
             Statement::Continue(continue_statement) => {
                 if self.in_loop == 0 {
@@ -323,6 +357,7 @@ impl Typecheker {
                         span: continue_statement.span,
                     });
                 }
+                Ok(Statement::Continue(continue_statement.clone()))
             }
             Statement::If(if_statement) => {
                 let check = self.check_expression(&if_statement.expression)?;
@@ -335,25 +370,54 @@ impl Typecheker {
                 }
                 self.check_statmenets(&if_statement.true_block)?;
                 self.check_statmenets(&if_statement.else_block)?;
+                Ok(Statement::If(if_statement.clone()))
             }
             Statement::Prototype(prototype) => {
-                self.functions.push(self.create_prototype(prototype)?);
+                let mut stored_prototype = self.create_prototype(prototype)?;
+                let mut saved_kind = stored_prototype.return_kind.clone();
+                if stored_prototype.return_kind == Type::Unknown {
+                    stored_prototype.return_kind = Type::Void;
+                    saved_kind = Type::Void;
+                }
+                self.functions.push(stored_prototype);
+                Ok(Statement::Prototype(Prototype {
+                    is_extern: prototype.is_extern,
+                    name: prototype.name.clone(),
+                    params: prototype.params.clone(),
+                    return_type: saved_kind,
+                    span: prototype.span,
+                }))
             }
             Statement::Function(function) => {
-                let temp = self.create_function(function)?;
-                self.functions.push(temp);
+                let kind = self.create_function(function)?;
                 self.check_statmenets(&function.statements)?;
+
+                Ok(Statement::Function(Function {
+                    prototype: Prototype {
+                        params: function.prototype.params.clone(),
+                        return_type: kind,
+                        name: function.prototype.name.clone(),
+                        is_extern: function.prototype.is_extern,
+                        span: function.prototype.span,
+                    },
+                    statements: function.statements.clone(),
+                }))
             }
-            Statement::Return(_) => {}
+            Statement::Return(value) => Ok(Statement::Return(value.clone())),
         }
-        Ok(())
     }
 
-    pub fn check_statmenets(&mut self, statements: &[Statement]) -> Result<Vec<Error>, Error> {
+    pub fn check_statmenets(
+        &mut self,
+        statements: &[Statement],
+    ) -> Result<(Vec<Statement>, Vec<Error>), Error> {
+        self.enter_scope();
         let mut iter = statements.iter();
+        let mut result = vec![];
         while let Some(statement) = iter.next() {
-            self.check_statmenet(statement)?;
+            result.push(self.check_statmenet(statement)?);
         }
-        Ok(self.warnings.clone())
+        self.leave_scope();
+        Ok((result, self.warnings.clone()))
     }
 }

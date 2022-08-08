@@ -1,0 +1,16 @@
+extern function printf(anon format: raw c_char, anon number: i64) -> usize
+
+function main() {
+    mut x = 0;
+    loop {
+        if x == 5 {
+            printf("five: %d\n", x);
+        } else {
+            printf("%d\n", x);
+        }
+        x += 1;
+        if x >= 10 {
+            break;
+        }
+    }
+}
