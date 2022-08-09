@@ -31,6 +31,7 @@ pub struct Linter {
     scope: usize,
     variables: Vec<StoredVariable>,
     functions: Vec<StoredFunction>,
+    temp_function: Option<StoredFunction>,
     in_loop: usize,
     warnings: Vec<Error>,
 }
@@ -41,6 +42,7 @@ impl Linter {
             variables: vec![],
             functions: vec![],
             warnings: vec![],
+            temp_function: None,
             scope: 0,
             in_loop: 0,
         }
@@ -53,7 +55,13 @@ impl Linter {
     }
 
     fn find_function_by_name(&self, name: &str) -> Option<&StoredFunction> {
-        self.functions.iter().find(|item| item.name == name)
+        if let Some(function) = self.functions.iter().find(|item| item.name == name) {
+            return Some(function);
+        }
+        if let Some(temp_function) = &self.temp_function {
+            return Some(temp_function);
+        }
+        None
     }
 
     fn check_expression(&self, expression: &Expression) -> Result<Type, Error> {
@@ -248,6 +256,9 @@ impl Linter {
             });
         }
 
+        let old_temp_function = self.temp_function.clone();
+        self.temp_function = Some(prototype.clone());
+
         let returned_kind = self.get_statement_return_type(&function.statements)?;
         if returned_kind.equal(&Type::Unknown) {
             return Err(Error {
@@ -272,6 +283,7 @@ impl Linter {
 
         prototype.change_type(returned_kind.clone());
         self.functions.push(prototype);
+        self.temp_function = old_temp_function;
 
         Ok(returned_kind)
     }
