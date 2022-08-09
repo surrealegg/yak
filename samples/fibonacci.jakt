@@ -8,5 +8,5 @@ function fibonacci(anon n: i64) -> i64 {
 }
 
 function main() {
-    printf("%d\n", fibonacci(12));
+    printf("%d\n", fibonacci(21));
 }
