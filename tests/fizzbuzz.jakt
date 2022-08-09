@@ -10,11 +10,11 @@ function fizzbuzz() {
     mut x = 0
     while x <= 100 {
         if x % 15 == 0 {
-            print_string("FizzBuzz\n")
+            printf("%d\tFizzBuzz\n", x)
         } else if x % 3 == 0 {
-            print_string("Fizz\n")
+            printf("%d\tFizz\n", x)
         } else if x % 5 == 0 {
-            print_string("Buzz\n")
+            printf("%d\tBuzz\n", x)
         } else {
             printf("%d\n", x)
         }

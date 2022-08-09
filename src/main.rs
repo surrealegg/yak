@@ -34,7 +34,7 @@ fn main() {
                         }
                         Ok((changed_ast, warnings)) => {
                             for warning in warnings.iter() {
-                                println!(
+                                eprintln!(
                                     "{}",
                                     warning.show(content.as_bytes(), &filename).unwrap()
                                 );
