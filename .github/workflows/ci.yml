@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Install LLVM
-      run: sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)"
+      run: wget https://apt.llvm.org/llvm.sh && sh llvm.sh 14
     - name: Build 
       run: cargo build
     - name: Run tests
