@@ -18,7 +18,7 @@ pub struct Literal {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum BinaryKind {
     As,
     Plus,
@@ -40,6 +40,8 @@ pub enum BinaryKind {
     SlashEqual,
     RightShiftEqual,
     LeftShiftEqual,
+    Modulo,
+    ModuloEqual,
 }
 
 impl BinaryKind {
@@ -54,6 +56,36 @@ impl BinaryKind {
             | BinaryKind::LeftShiftEqual => true,
             _ => false,
         }
+    }
+}
+
+impl ToString for BinaryKind {
+    fn to_string(&self) -> String {
+        match self {
+            BinaryKind::As => "as",
+            BinaryKind::Plus => "+",
+            BinaryKind::Minus => "-",
+            BinaryKind::Asterisk => "* ",
+            BinaryKind::Slash => "/",
+            BinaryKind::Equal => "=",
+            BinaryKind::DoubleEqual => "==",
+            BinaryKind::BangEqual => "!=",
+            BinaryKind::Great => ">",
+            BinaryKind::GreatEqual => ">=",
+            BinaryKind::Less => "<",
+            BinaryKind::LessEqual => "<=",
+            BinaryKind::RightShift => ">>",
+            BinaryKind::LeftShift => "<<",
+            BinaryKind::PlusEqual => "+=",
+            BinaryKind::MinusEqual => "-=",
+            BinaryKind::AsteriskEqual => "*=",
+            BinaryKind::SlashEqual => "/=",
+            BinaryKind::RightShiftEqual => ">>=",
+            BinaryKind::LeftShiftEqual => "<<=",
+            BinaryKind::Modulo => "%",
+            BinaryKind::ModuloEqual => "%=",
+        }
+        .to_string()
     }
 }
 
@@ -82,6 +114,8 @@ impl TryFrom<TokenKind> for BinaryKind {
             TokenKind::SlashEqual => Ok(BinaryKind::SlashEqual),
             TokenKind::RightShiftEqual => Ok(BinaryKind::RightShiftEqual),
             TokenKind::LeftShiftEqual => Ok(BinaryKind::LeftShiftEqual),
+            TokenKind::Percent => Ok(BinaryKind::Modulo),
+            TokenKind::PercentEqual => Ok(BinaryKind::ModuloEqual),
             _ => Err(()),
         }
     }
@@ -285,6 +319,22 @@ impl Type {
             | Type::U64
             | Type::F32
             | Type::F64
+            | Type::CInt
+            | Type::USize => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_integer(&self) -> bool {
+        match self {
+            Type::I8
+            | Type::U8
+            | Type::I16
+            | Type::U16
+            | Type::I32
+            | Type::U32
+            | Type::I64
+            | Type::U64
             | Type::CInt
             | Type::USize => true,
             _ => false,

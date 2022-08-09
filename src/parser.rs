@@ -251,6 +251,7 @@ impl Parser {
             TokenKind::AsteriskEqual,
             TokenKind::RightShiftEqual,
             TokenKind::LeftShiftEqual,
+            TokenKind::PercentEqual,
             TokenKind::Equal,
         ]) {
             let right = self.unary()?;
@@ -273,6 +274,7 @@ impl Parser {
             TokenKind::Slash,
             TokenKind::RightShift,
             TokenKind::LeftShift,
+            TokenKind::Percent,
         ]) {
             let right = self.assignment()?;
             left = Expression::Binary(Binary {

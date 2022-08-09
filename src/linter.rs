@@ -100,7 +100,17 @@ impl Linter {
                     }
                 }
 
-                if lhs.equal(&rhs) {
+                if !lhs.equal(&rhs) || (binary.kind == BinaryKind::Modulo && !lhs.is_integer()) {
+                    Err(Error {
+                        kind: ErrorKind::BinaryBetweenIncompatibleTypes(
+                            lhs,
+                            rhs,
+                            binary.kind.clone(),
+                        ),
+                        severity: ErrorSeverity::Error,
+                        span: binary.span,
+                    })
+                } else {
                     Ok(match binary.kind {
                         BinaryKind::DoubleEqual
                         | BinaryKind::BangEqual
@@ -109,12 +119,6 @@ impl Linter {
                         | BinaryKind::Less
                         | BinaryKind::LessEqual => Type::Bool,
                         _ => lhs,
-                    })
-                } else {
-                    Err(Error {
-                        kind: ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs),
-                        severity: ErrorSeverity::Error,
-                        span: binary.span,
                     })
                 }
             }

@@ -5,7 +5,7 @@ use inkwell::{
     module::{Linkage, Module},
     passes::PassManager,
     types::{BasicType, BasicTypeEnum},
-    values::{BasicMetadataValueEnum, BasicValueEnum, FunctionValue, PointerValue},
+    values::{BasicMetadataValueEnum, BasicValue, BasicValueEnum, FunctionValue, PointerValue},
     AddressSpace, FloatPredicate, IntPredicate,
 };
 
@@ -162,6 +162,17 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         unreachable!()
     }
 
+    fn modulo(
+        &self,
+        lhs: BasicValueEnum<'a>,
+        rhs: BasicValueEnum<'a>,
+    ) -> Option<BasicValueEnum<'a>> {
+        let lhs = lhs.into_int_value();
+        let rhs = rhs.into_int_value();
+        let result = self.builder.build_int_signed_rem(lhs, rhs, ".remi");
+        Some(result.as_basic_value_enum())
+    }
+
     fn binary(&self, binary: &Binary) -> Option<BasicValueEnum<'a>> {
         let lhs = self.expression(&binary.left).unwrap();
         let rhs = self.expression(&binary.right).unwrap();
@@ -183,6 +194,8 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             BinaryKind::MinusEqual => self.assign(&binary.left, self.sub(lhs, rhs).unwrap()),
             BinaryKind::AsteriskEqual => self.assign(&binary.left, self.mul(lhs, rhs).unwrap()),
             BinaryKind::SlashEqual => self.assign(&binary.left, self.div(lhs, rhs).unwrap()),
+            BinaryKind::Modulo => self.modulo(lhs, rhs),
+            BinaryKind::ModuloEqual => self.assign(&binary.left, self.modulo(lhs, rhs).unwrap()),
             BinaryKind::RightShiftEqual => unimplemented!(),
             BinaryKind::LeftShiftEqual => unimplemented!(),
             _ => unreachable!(),

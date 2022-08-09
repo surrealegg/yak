@@ -46,6 +46,8 @@ pub enum TokenKind {
     Cpp,
 
     // Symbols
+    Percent,
+    PercentEqual,
     Arrow,
     Comma,
     Colon,
@@ -169,6 +171,8 @@ impl ToString for TokenKind {
                 TokenKind::Continue => "continue",
                 TokenKind::Cpp => "cpp",
                 TokenKind::StringType => "String",
+                TokenKind::Percent => "%",
+                TokenKind::PercentEqual => "%=",
             }
         )
     }

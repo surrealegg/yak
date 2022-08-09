@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Type, UnaryKind},
+    ast::{BinaryKind, Type, UnaryKind},
     tokens::TokenKind,
     utils::Span,
 };
@@ -17,7 +17,7 @@ pub enum ErrorKind {
     ExpectedAnItem,
     RedefinitionVariable(String),
     VariableNotFound(String),
-    BinaryBetweenIncompatibleTypes(Type, Type),
+    BinaryBetweenIncompatibleTypes(Type, Type, BinaryKind),
     MismatchedTypes(Type, Type),
     FunctionNotFound(String),
     BreakOutsideLoop,
@@ -53,11 +53,12 @@ impl ToString for ErrorKind {
                 format!("redefinition of variable '{}'", variable)
             }
             ErrorKind::VariableNotFound(variable) => format!("variable '{}' not found", variable),
-            ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs) => {
+            ErrorKind::BinaryBetweenIncompatibleTypes(lhs, rhs, kind) => {
                 format!(
-                    "binary arithmetic operation between incompatible types ('{}', '{}')",
+                    "invalid operands of types '{}' and '{}' to binary operator '{}'",
                     lhs.to_string(),
-                    rhs.to_string()
+                    rhs.to_string(),
+                    kind.to_string(),
                 )
             }
             ErrorKind::MismatchedTypes(expected, actual) => format!(

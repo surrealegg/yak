@@ -1,0 +1,27 @@
+extern function printf(anon format: raw c_char, anon number: i64) -> usize
+extern function strlen(value: raw c_char) -> usize
+extern function write(anon io: i64, anon buffer: raw c_char, anon count: usize) -> usize
+
+function print_string(anon value: raw c_char) {
+    write(1, value, strlen(value))
+}
+
+function fizzbuzz() {
+    mut x = 0
+    while x <= 100 {
+        if x % 15 == 0 {
+            print_string("FizzBuzz\n")
+        } else if x % 3 == 0 {
+            print_string("Fizz\n")
+        } else if x % 5 == 0 {
+            print_string("Buzz\n")
+        } else {
+            printf("%d\n", x)
+        }
+        x += 1
+    }
+}
+
+function main() {
+    return fizzbuzz()
+}

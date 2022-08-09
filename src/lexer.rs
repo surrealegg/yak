@@ -246,6 +246,8 @@ impl Lexer {
                 self.create_token(TokenKind::LeftShiftEqual, 3)
             }
             b'<' => self.create_token(TokenKind::Less, 1),
+            b'%' if self.next_char_is(b'=') => self.create_token(TokenKind::PercentEqual, 2),
+            b'%' => self.create_token(TokenKind::Percent, 1),
             b'\n' => {
                 let token = self.create_token(TokenKind::EndLine, 1);
                 self.line += 1;
