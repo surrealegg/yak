@@ -14,6 +14,12 @@ struct StoredVariable {
     pub mutable: bool,
 }
 
+impl StoredFunction {
+    pub fn change_type(&mut self, kind: Type) {
+        self.return_kind = kind;
+    }
+}
+
 #[derive(Debug, Clone)]
 struct StoredFunction {
     pub name: String,
@@ -201,7 +207,11 @@ impl Linter {
                         severity: ErrorSeverity::Warning,
                     });
                 }
-                return Ok(self.check_expression(&ret.expression)?);
+                return Ok(if let Some(expression) = &ret.expression {
+                    self.check_expression(&expression)?
+                } else {
+                    Type::Void
+                });
             }
         }
         Ok(Type::Void)
@@ -224,7 +234,7 @@ impl Linter {
     }
 
     fn create_function(&mut self, function: &Function) -> Result<Type, Error> {
-        let prototype = self.create_prototype(&function.prototype)?;
+        let mut prototype = self.create_prototype(&function.prototype)?;
         for item in prototype.params.iter() {
             self.variables.push(StoredVariable {
                 scope: self.scope,
@@ -234,8 +244,15 @@ impl Linter {
             });
         }
 
-        self.functions.push(prototype);
         let returned_kind = self.get_statement_return_type(&function.statements)?;
+        if returned_kind.equal(&Type::Unknown) {
+            return Err(Error {
+                kind: ErrorKind::AmbiguousType,
+                severity: ErrorSeverity::Error,
+                span: function.prototype.span,
+            });
+        }
+
         if function.prototype.return_type != Type::Unknown
             && !function.prototype.return_type.equal(&returned_kind)
         {
@@ -248,6 +265,9 @@ impl Linter {
                 span: function.prototype.span,
             });
         }
+
+        prototype.change_type(returned_kind.clone());
+        self.functions.push(prototype);
 
         Ok(returned_kind)
     }

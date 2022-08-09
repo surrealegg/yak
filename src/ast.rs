@@ -368,7 +368,7 @@ pub struct Function {
 
 #[derive(Debug, Clone)]
 pub struct Return {
-    pub expression: Expression,
+    pub expression: Option<Expression>,
     pub span: Span,
 }
 

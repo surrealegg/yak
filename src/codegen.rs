@@ -453,11 +453,13 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             }
             Statement::Function(function) => self.function(function),
             Statement::Return(return_statement) => {
-                if let Some(value) = self.expression(&return_statement.expression) {
-                    self.builder.build_return(Some(&value));
-                } else {
-                    self.builder.build_return(None);
+                if let Some(expression) = &return_statement.expression {
+                    if let Some(value) = self.expression(&expression) {
+                        self.builder.build_return(Some(&value));
+                        return true;
+                    }
                 }
+                self.builder.build_return(None);
                 return true;
             }
         }
@@ -466,14 +468,14 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
 
     pub fn statements(&mut self, statements: &Vec<Statement>) -> bool {
         self.enter_scope();
-        let mut terminated = false;
         for statement in statements.iter() {
             let statement_terminated = self.statement(statement);
-            if !terminated && statement_terminated {
-                terminated = true;
+            if statement_terminated {
+                self.leave_scope();
+                return true;
             }
         }
         self.leave_scope();
-        terminated
+        false
     }
 }

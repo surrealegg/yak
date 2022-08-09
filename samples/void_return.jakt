@@ -1,0 +1,11 @@
+extern function printf(anon format: raw c_char) -> usize
+
+function void_return() {
+    printf("test\n")
+    return
+    printf("you shouldn't see this!\n")
+}
+
+function main() {
+    return void_return();
+}

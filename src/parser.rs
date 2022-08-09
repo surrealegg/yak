@@ -532,7 +532,7 @@ impl Parser {
             TokenKind::If => self.if_statement(),
             TokenKind::Return => {
                 self.advance();
-                let expression = self.expression()?;
+                let expression = self.expression().ok();
                 self.consume_endline()?;
                 Ok(Statement::Return(Return {
                     expression,
