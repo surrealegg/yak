@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FILES=$(find ./samples -type f -name "*.jakt")
+FILES=$(find ./tests -type f -name "*.jakt")
 GREEN="\033[0;32m"
 RED="\033[0;31m"
 WHITE="\033[0;37m"
