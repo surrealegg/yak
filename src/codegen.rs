@@ -222,7 +222,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                 }
                 _ => unreachable!(),
             },
-            UnaryKind::Plus => unimplemented!(),
+            UnaryKind::Plus => value,
         })
     }
 
