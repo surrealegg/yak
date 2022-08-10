@@ -23,7 +23,7 @@ fn compile(filename: &str, content: &str) -> Result<(), Error> {
     let mut parser = Parser::new(tokens);
     let mut ast = parser.parse()?;
     let mut linter = Linter::new();
-    let warnings = linter.check_statements(&mut ast)?;
+    let warnings = linter.lint(&mut ast)?;
 
     for warning in warnings.iter() {
         eprintln!("{}", warning.show(content.as_bytes(), &filename).unwrap());

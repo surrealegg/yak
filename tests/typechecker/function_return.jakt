@@ -1,0 +1,53 @@
+extern function printf(anon format: raw c_char) -> usize
+
+function case_1() {
+    printf("CASE 1: Implicit return void\n")
+    return
+}
+
+function case_2() -> void {
+    printf("CASE 2: Explicit return void\n")
+    return
+}
+
+function case_3() -> bool {
+    printf("CASE 3: Explicit return bool\n")
+    return true
+}
+
+function case_4() {
+    {
+        printf("CASE 4: Implicit return bool block\n")
+        return true
+    }
+}
+
+function case_5() {
+    printf("CASE 4: Implicit return i64 if\n")
+    if false {
+        return 100
+    }
+    return 42
+}
+
+function case_6() {
+    printf("CASE 4: Implicit return i64 if/else\n")
+    if false {
+        return 100
+    } else {
+        return 42
+    }
+}
+
+function typeck() {
+    case_1()
+    case_2()
+    case_3()
+    case_4()
+    case_5()
+    case_6()
+}
+
+function main() {
+    return typeck();
+}

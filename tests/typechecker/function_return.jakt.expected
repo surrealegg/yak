@@ -1,0 +1,6 @@
+CASE 1: Implicit return void
+CASE 2: Explicit return void
+CASE 3: Explicit return bool
+CASE 4: Implicit return bool block
+CASE 4: Implicit return i64 if
+CASE 4: Implicit return i64 if/else

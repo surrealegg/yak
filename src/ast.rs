@@ -307,6 +307,19 @@ impl Type {
         }
     }
 
+    pub fn merge(others: &[Type]) -> Type {
+        if let Some(last) = others.last() {
+            let mut it = others.iter().peekable();
+            while let Some(other) = it.next() {
+                if !(other == &Type::Void && it.peek().is_some()) && !last.equal(other) {
+                    return Type::Unknown;
+                }
+            }
+            return last.clone();
+        }
+        return Type::Void;
+    }
+
     pub fn is_numeric(&self) -> bool {
         match self {
             Type::I8

@@ -4,6 +4,7 @@ use crate::{
         VariableDeclaration,
     },
     error::{Error, ErrorKind, ErrorSeverity},
+    utils::Span,
 };
 
 #[derive(Debug, Clone)]
@@ -12,12 +13,6 @@ struct StoredVariable {
     pub name: String,
     pub kind: Type,
     pub mutable: bool,
-}
-
-impl StoredFunction {
-    pub fn change_type(&mut self, kind: Type) {
-        self.return_kind = kind;
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -207,28 +202,6 @@ impl Linter {
         }
     }
 
-    fn get_statement_return_type(&mut self, statements: &[Statement]) -> Result<Type, Error> {
-        let mut it = statements.iter().peekable();
-        while let Some(statement) = it.next() {
-            if let Statement::Return(ret) = statement {
-                // FIXME: Sort out clippy's error
-                if it.peek().is_some() {
-                    self.warnings.push(Error {
-                        span: ret.span,
-                        kind: ErrorKind::DeadCode,
-                        severity: ErrorSeverity::Warning,
-                    });
-                }
-                return Ok(if let Some(expression) = &ret.expression {
-                    self.check_expression(&expression)?
-                } else {
-                    Type::Void
-                });
-            }
-        }
-        Ok(Type::Void)
-    }
-
     fn create_prototype(&self, prototype: &Prototype) -> Result<StoredFunction, Error> {
         if let Some(_) = self.find_function_by_name(&prototype.name) {
             Err(Error {
@@ -245,7 +218,7 @@ impl Linter {
         }
     }
 
-    fn create_function(&mut self, function: &Function) -> Result<Type, Error> {
+    fn create_function(&mut self, function: &mut Function) -> Result<Type, Error> {
         let mut prototype = self.create_prototype(&function.prototype)?;
         for item in prototype.params.iter() {
             self.variables.push(StoredVariable {
@@ -259,18 +232,10 @@ impl Linter {
         let old_temp_function = self.temp_function.clone();
         self.temp_function = Some(prototype.clone());
 
-        let returned_kind = self.get_statement_return_type(&function.statements)?;
-        if returned_kind.equal(&Type::Unknown) {
-            return Err(Error {
-                kind: ErrorKind::AmbiguousType,
-                severity: ErrorSeverity::Error,
-                span: function.prototype.span,
-            });
-        }
+        let test = self.check_statements(&mut function.statements)?;
+        let returned_kind = Type::merge(&test);
 
-        if function.prototype.return_type != Type::Unknown
-            && !function.prototype.return_type.equal(&returned_kind)
-        {
+        if prototype.return_kind != Type::Unknown && !prototype.return_kind.equal(&returned_kind) {
             return Err(Error {
                 kind: ErrorKind::MismatchedTypes(
                     function.prototype.return_type.clone(),
@@ -281,10 +246,9 @@ impl Linter {
             });
         }
 
-        prototype.change_type(returned_kind.clone());
-        self.functions.push(prototype);
+        prototype.return_kind = returned_kind.clone();
+        self.functions.push(prototype.clone());
         self.temp_function = old_temp_function;
-
         Ok(returned_kind)
     }
 
@@ -332,36 +296,38 @@ impl Linter {
         self.scope -= 1;
     }
 
-    fn check_statement(&mut self, statement: &mut Statement) -> Result<(), Error> {
-        let temp = match statement {
+    fn check_statement(
+        &mut self,
+        statement: &mut Statement,
+        types: &mut Vec<Type>,
+    ) -> Result<(), Error> {
+        Ok(match statement {
             Statement::Expression(expression) => {
                 self.check_expression(expression)?;
-                None
             }
             Statement::VariableDeclaration(decl) => {
                 let variable = self.create_variable(decl)?;
                 let variable_kind = variable.kind.clone();
                 self.variables.push(variable);
-                let result = Statement::VariableDeclaration(VariableDeclaration {
+                *decl = VariableDeclaration {
                     mutable: decl.mutable,
                     name: decl.name.clone(),
                     span: decl.span,
                     value: decl.value.clone(),
                     variable_type: variable_kind,
-                });
-                Some(result)
+                };
             }
             Statement::Block(block) => {
                 self.in_loop += 1;
-                self.check_statements(&mut block.statements)?;
+                let kind = Type::merge(&self.check_statements(&mut block.statements)?);
                 self.in_loop -= 1;
-                None
+                types.push(kind);
             }
             Statement::Loop(block) => {
                 self.in_loop += 1;
-                self.check_statements(&mut block.statements)?;
+                let kind = Type::merge(&self.check_statements(&mut block.statements)?);
                 self.in_loop -= 1;
-                None
+                types.push(kind);
             }
             Statement::While(while_block) => {
                 let check = self.check_expression(&while_block.expression)?;
@@ -373,9 +339,9 @@ impl Linter {
                     });
                 }
                 self.in_loop += 1;
-                self.check_statements(&mut while_block.block)?;
+                let kind = Type::merge(&self.check_statements(&mut while_block.block)?);
                 self.in_loop -= 1;
-                None
+                types.push(kind);
             }
             Statement::Break(break_statement) => {
                 if self.in_loop == 0 {
@@ -385,7 +351,6 @@ impl Linter {
                         span: break_statement.span,
                     });
                 }
-                None
             }
             Statement::Continue(continue_statement) => {
                 if self.in_loop == 0 {
@@ -395,7 +360,6 @@ impl Linter {
                         span: continue_statement.span,
                     });
                 }
-                None
             }
             Statement::If(if_statement) => {
                 let check = self.check_expression(&if_statement.expression)?;
@@ -406,9 +370,21 @@ impl Linter {
                         span: if_statement.expression.span(),
                     });
                 }
-                self.check_statements(&mut if_statement.true_block)?;
-                self.check_statements(&mut if_statement.else_block)?;
-                None
+                let lhs = Type::merge(&self.check_statements(&mut if_statement.true_block)?);
+
+                if !if_statement.else_block.is_empty() {
+                    let rhs = Type::merge(&self.check_statements(&mut if_statement.else_block)?);
+                    if !lhs.equal(&rhs) {
+                        return Err(Error {
+                            kind: ErrorKind::MismatchedTypes(lhs, rhs),
+                            severity: ErrorSeverity::Error,
+                            span: Span::default(),
+                        });
+                    }
+                    types.push(lhs);
+                } else {
+                    types.push(Type::Void);
+                }
             }
             Statement::Prototype(prototype) => {
                 let mut stored_prototype = self.create_prototype(prototype)?;
@@ -418,52 +394,56 @@ impl Linter {
                     saved_kind = Type::Void;
                 }
                 self.functions.push(stored_prototype);
-                Some(Statement::Prototype(Prototype {
+                *prototype = Prototype {
                     is_extern: prototype.is_extern,
                     name: prototype.name.clone(),
                     params: prototype.params.clone(),
-                    return_type: saved_kind,
+                    return_type: saved_kind.clone(),
                     span: prototype.span,
-                }))
+                };
+                types.push(saved_kind);
             }
             Statement::Function(function) => {
                 let kind = self.create_function(function)?;
                 self.check_statements(&mut function.statements)?;
-
-                Some(Statement::Function(Function {
-                    prototype: Prototype {
-                        params: function.prototype.params.clone(),
-                        return_type: kind,
-                        name: function.prototype.name.clone(),
-                        is_extern: function.prototype.is_extern,
-                        span: function.prototype.span,
-                    },
-                    statements: function.statements.clone(),
-                }))
+                function.prototype.return_type = kind.clone();
+                types.push(kind);
             }
             Statement::Return(value) => {
-                if let Some(expression) = &value.expression {
-                    self.check_expression(expression)?;
-                }
-                None
+                types.push(if let Some(expression) = &value.expression {
+                    self.check_expression(expression)?
+                } else {
+                    Type::Void
+                });
             }
-        };
-
-        if let Some(temp) = temp {
-            *statement = temp;
-        }
-
-        Ok(())
+        })
     }
 
-    pub fn check_statements(&mut self, statements: &mut [Statement]) -> Result<Vec<Error>, Error> {
+    pub fn check_statements(&mut self, statements: &mut [Statement]) -> Result<Vec<Type>, Error> {
         self.enter_scope();
         let mut iter = statements.iter_mut();
         let mut result = vec![];
         while let Some(statement) = iter.next() {
-            result.push(self.check_statement(statement)?);
+            self.check_statement(statement, &mut result)?;
         }
         self.leave_scope();
+
+        for kind in result.iter() {
+            if kind == &Type::Unknown {
+                // TODO: Span?
+                return Err(Error {
+                    kind: ErrorKind::AmbiguousType,
+                    severity: ErrorSeverity::Error,
+                    span: Span::default(),
+                });
+            }
+        }
+
+        Ok(result)
+    }
+
+    pub fn lint(&mut self, statements: &mut [Statement]) -> Result<Vec<Error>, Error> {
+        self.check_statements(statements)?;
         Ok(self.warnings.clone())
     }
 }
