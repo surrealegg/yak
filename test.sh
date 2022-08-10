@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 FILES=$(find ./tests -type f -name "*.jakt")
 GREEN="\033[0;32m"
