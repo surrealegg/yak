@@ -332,34 +332,36 @@ impl Linter {
         self.scope -= 1;
     }
 
-    fn check_statmenet(&mut self, statement: &Statement) -> Result<Statement, Error> {
-        match statement {
+    fn check_statement(&mut self, statement: &mut Statement) -> Result<(), Error> {
+        let temp = match statement {
             Statement::Expression(expression) => {
                 self.check_expression(expression)?;
-                Ok(Statement::Expression(expression.clone()))
+                None
             }
             Statement::VariableDeclaration(decl) => {
                 let variable = self.create_variable(decl)?;
-                let kind = variable.kind.clone();
+                let variable_kind = variable.kind.clone();
                 self.variables.push(variable);
                 let result = Statement::VariableDeclaration(VariableDeclaration {
                     mutable: decl.mutable,
                     name: decl.name.clone(),
                     span: decl.span,
                     value: decl.value.clone(),
-                    variable_type: kind,
+                    variable_type: variable_kind,
                 });
-                Ok(result)
+                Some(result)
             }
             Statement::Block(block) => {
-                self.check_statmenets(&block.statements)?;
-                Ok(Statement::Block(block.clone()))
+                self.in_loop += 1;
+                self.check_statements(&mut block.statements)?;
+                self.in_loop -= 1;
+                None
             }
             Statement::Loop(block) => {
                 self.in_loop += 1;
-                self.check_statmenets(&block.statements)?;
+                self.check_statements(&mut block.statements)?;
                 self.in_loop -= 1;
-                Ok(Statement::Loop(block.clone()))
+                None
             }
             Statement::While(while_block) => {
                 let check = self.check_expression(&while_block.expression)?;
@@ -371,9 +373,9 @@ impl Linter {
                     });
                 }
                 self.in_loop += 1;
-                self.check_statmenets(&while_block.block)?;
+                self.check_statements(&mut while_block.block)?;
                 self.in_loop -= 1;
-                Ok(Statement::While(while_block.clone()))
+                None
             }
             Statement::Break(break_statement) => {
                 if self.in_loop == 0 {
@@ -383,7 +385,7 @@ impl Linter {
                         span: break_statement.span,
                     });
                 }
-                Ok(Statement::Break(break_statement.clone()))
+                None
             }
             Statement::Continue(continue_statement) => {
                 if self.in_loop == 0 {
@@ -393,7 +395,7 @@ impl Linter {
                         span: continue_statement.span,
                     });
                 }
-                Ok(Statement::Continue(continue_statement.clone()))
+                None
             }
             Statement::If(if_statement) => {
                 let check = self.check_expression(&if_statement.expression)?;
@@ -404,9 +406,9 @@ impl Linter {
                         span: if_statement.expression.span(),
                     });
                 }
-                self.check_statmenets(&if_statement.true_block)?;
-                self.check_statmenets(&if_statement.else_block)?;
-                Ok(Statement::If(if_statement.clone()))
+                self.check_statements(&mut if_statement.true_block)?;
+                self.check_statements(&mut if_statement.else_block)?;
+                None
             }
             Statement::Prototype(prototype) => {
                 let mut stored_prototype = self.create_prototype(prototype)?;
@@ -416,7 +418,7 @@ impl Linter {
                     saved_kind = Type::Void;
                 }
                 self.functions.push(stored_prototype);
-                Ok(Statement::Prototype(Prototype {
+                Some(Statement::Prototype(Prototype {
                     is_extern: prototype.is_extern,
                     name: prototype.name.clone(),
                     params: prototype.params.clone(),
@@ -426,9 +428,9 @@ impl Linter {
             }
             Statement::Function(function) => {
                 let kind = self.create_function(function)?;
-                self.check_statmenets(&function.statements)?;
+                self.check_statements(&mut function.statements)?;
 
-                Ok(Statement::Function(Function {
+                Some(Statement::Function(Function {
                     prototype: Prototype {
                         params: function.prototype.params.clone(),
                         return_type: kind,
@@ -439,21 +441,29 @@ impl Linter {
                     statements: function.statements.clone(),
                 }))
             }
-            Statement::Return(value) => Ok(Statement::Return(value.clone())),
+            Statement::Return(value) => {
+                if let Some(expression) = &value.expression {
+                    self.check_expression(expression)?;
+                }
+                None
+            }
+        };
+
+        if let Some(temp) = temp {
+            *statement = temp;
         }
+
+        Ok(())
     }
 
-    pub fn check_statmenets(
-        &mut self,
-        statements: &[Statement],
-    ) -> Result<(Vec<Statement>, Vec<Error>), Error> {
+    pub fn check_statements(&mut self, statements: &mut [Statement]) -> Result<Vec<Error>, Error> {
         self.enter_scope();
-        let mut iter = statements.iter();
+        let mut iter = statements.iter_mut();
         let mut result = vec![];
         while let Some(statement) = iter.next() {
-            result.push(self.check_statmenet(statement)?);
+            result.push(self.check_statement(statement)?);
         }
         self.leave_scope();
-        Ok((result, self.warnings.clone()))
+        Ok(self.warnings.clone())
     }
 }
