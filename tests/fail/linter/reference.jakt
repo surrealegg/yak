@@ -1,0 +1,8 @@
+function test(x: &mut i64) {
+
+}
+
+function main() {
+    let x = 42;
+    test(&x);
+}

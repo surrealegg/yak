@@ -1,4 +1,4 @@
-use std::{env, fs};
+use std::{env, fs, process::ExitCode};
 
 use codegen::Codegen;
 use error::Error;
@@ -73,11 +73,14 @@ fn compile(filename: &str, content: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn main() {
+fn main() -> ExitCode {
     let args: Vec<String> = env::args().collect();
     let filename = args.get(1).unwrap();
     let contents = fs::read_to_string(&filename).unwrap();
     if let Err(error) = compile(&filename, &contents) {
         eprintln!("{}", error.show(contents.as_bytes(), &filename).unwrap());
+        ExitCode::from(1)
+    } else {
+        ExitCode::from(0)
     }
 }
