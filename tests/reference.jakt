@@ -1,7 +1,7 @@
 extern function printf(anon format: raw c_char, anon number: i64) -> usize
 
-function edit(anon test2: &mut i64) {
-    *test2 = 100;
+function edit(anon test: &mut i64) {
+    *test = 100;
 }
 
 function main() {

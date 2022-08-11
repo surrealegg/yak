@@ -256,7 +256,7 @@ impl Linter {
         let mut prototype = self.create_prototype(&function.prototype)?;
         for item in prototype.params.iter() {
             self.variables.push(StoredVariable {
-                scope: self.scope,
+                scope: self.scope + 1,
                 name: item.name.clone(),
                 kind: item.kind.clone(),
                 mutable: true,
@@ -438,10 +438,8 @@ impl Linter {
                 types.push(saved_kind);
             }
             Statement::Function(function) => {
-                let kind = self.create_function(function)?;
-                self.check_statements(&mut function.statements)?;
-                function.prototype.return_type = kind.clone();
-                types.push(kind);
+                function.prototype.return_type = self.create_function(function)?;
+                types.push(function.prototype.return_type.clone());
             }
             Statement::Return(value) => {
                 types.push(if let Some(expression) = &mut value.expression {
