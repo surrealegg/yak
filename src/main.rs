@@ -56,9 +56,10 @@ fn compile(filename: &str, content: &str) -> Result<(), Error> {
         variables: vec![],
         scope: 0,
         need_br: false,
+        need_loading: true,
     };
 
-    codegen.statements(&ast);
+    codegen.codegen(&ast);
     module.print_to_file("out.ll").unwrap();
 
     let ee = module

@@ -34,6 +34,7 @@ pub struct Codegen<'a, 'ctx> {
     pub continue_block: Option<BasicBlock<'a>>,
     pub return_value: Option<BasicValueEnum<'a>>,
     pub need_br: bool,
+    pub need_loading: bool,
 }
 
 // using unwrap and unreachable, because it should be checked in typechecker.rs
@@ -74,7 +75,11 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             ),
             LiteralKind::Identifier(name) => {
                 let variable = self.find_variable_by_name(name);
-                self.builder.build_load(variable.value, ".load")
+                if self.need_loading {
+                    self.builder.build_load(variable.value, ".load")
+                } else {
+                    variable.value.as_basic_value_enum()
+                }
             }
             LiteralKind::Integer(value) => {
                 BasicValueEnum::IntValue(self.context.i64_type().const_int(*value as u64, true))
@@ -151,15 +156,13 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         })
     }
 
-    fn assign(&self, lhs: &Expression, rhs: BasicValueEnum<'a>) -> Option<BasicValueEnum<'a>> {
-        if let Expression::Literal(literal) = lhs {
-            if let LiteralKind::Identifier(name) = &literal.kind {
-                let variable = self.find_variable_by_name(&name);
-                self.builder.build_store(variable.value, rhs);
-                return Some(rhs);
-            }
-        }
-        unreachable!()
+    fn assign(
+        &self,
+        lhs: BasicValueEnum<'a>,
+        rhs: BasicValueEnum<'a>,
+    ) -> Option<BasicValueEnum<'a>> {
+        self.builder.build_store(lhs.into_pointer_value(), rhs);
+        None
     }
 
     fn modulo(
@@ -173,10 +176,22 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         Some(result.as_basic_value_enum())
     }
 
-    fn binary(&self, binary: &Binary) -> Option<BasicValueEnum<'a>> {
-        let lhs = self.expression(&binary.left).unwrap();
-        let rhs = self.expression(&binary.right).unwrap();
-        match binary.kind {
+    fn binary(&mut self, binary: &Binary) -> Option<BasicValueEnum<'a>> {
+        self.need_loading = false;
+        let mut lhs = self.expression(&binary.left).unwrap();
+        let mut rhs = self.expression(&binary.right).unwrap();
+
+        if let BasicValueEnum::PointerValue(ptr) = rhs {
+            rhs = self.builder.build_load(ptr, ".load");
+        }
+
+        if let BasicValueEnum::PointerValue(ptr) = lhs {
+            if !binary.kind.is_assign() {
+                lhs = self.builder.build_load(ptr, ".load");
+            }
+        }
+
+        let result = match binary.kind {
             BinaryKind::Plus => self.add(lhs, rhs),
             BinaryKind::Minus => self.sub(lhs, rhs),
             BinaryKind::Asterisk => self.mul(lhs, rhs),
@@ -189,20 +204,68 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             BinaryKind::LessEqual => self.cmp(lhs, rhs, IntPredicate::SLE, FloatPredicate::OLE),
             BinaryKind::RightShift => unimplemented!(),
             BinaryKind::LeftShift => unimplemented!(),
-            BinaryKind::Equal => self.assign(&binary.left, rhs),
-            BinaryKind::PlusEqual => self.assign(&binary.left, self.add(lhs, rhs).unwrap()),
-            BinaryKind::MinusEqual => self.assign(&binary.left, self.sub(lhs, rhs).unwrap()),
-            BinaryKind::AsteriskEqual => self.assign(&binary.left, self.mul(lhs, rhs).unwrap()),
-            BinaryKind::SlashEqual => self.assign(&binary.left, self.div(lhs, rhs).unwrap()),
+            BinaryKind::Equal => self.assign(lhs, rhs),
+            BinaryKind::PlusEqual => self.assign(
+                lhs,
+                self.add(
+                    self.builder
+                        .build_load(lhs.into_pointer_value(), ".load")
+                        .as_basic_value_enum(),
+                    rhs,
+                )
+                .unwrap(),
+            ),
+            BinaryKind::MinusEqual => self.assign(
+                lhs,
+                self.sub(
+                    self.builder
+                        .build_load(lhs.into_pointer_value(), ".load")
+                        .as_basic_value_enum(),
+                    rhs,
+                )
+                .unwrap(),
+            ),
+            BinaryKind::AsteriskEqual => self.assign(
+                lhs,
+                self.mul(
+                    self.builder
+                        .build_load(lhs.into_pointer_value(), ".load")
+                        .as_basic_value_enum(),
+                    rhs,
+                )
+                .unwrap(),
+            ),
+            BinaryKind::SlashEqual => self.assign(
+                lhs,
+                self.div(
+                    self.builder
+                        .build_load(lhs.into_pointer_value(), ".load")
+                        .as_basic_value_enum(),
+                    rhs,
+                )
+                .unwrap(),
+            ),
             BinaryKind::Modulo => self.modulo(lhs, rhs),
-            BinaryKind::ModuloEqual => self.assign(&binary.left, self.modulo(lhs, rhs).unwrap()),
+            BinaryKind::ModuloEqual => self.assign(
+                lhs,
+                self.modulo(
+                    self.builder
+                        .build_load(lhs.into_pointer_value(), ".load")
+                        .as_basic_value_enum(),
+                    rhs,
+                )
+                .unwrap(),
+            ),
             BinaryKind::RightShiftEqual => unimplemented!(),
             BinaryKind::LeftShiftEqual => unimplemented!(),
             _ => unreachable!(),
-        }
+        };
+
+        self.need_loading = true;
+        result
     }
 
-    fn unary(&self, unary: &Unary) -> Option<BasicValueEnum<'a>> {
+    fn unary(&mut self, unary: &Unary) -> Option<BasicValueEnum<'a>> {
         let value = self.expression(&unary.expr).unwrap();
         Some(match unary.kind {
             UnaryKind::Not => {
@@ -223,10 +286,11 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                 _ => unreachable!(),
             },
             UnaryKind::Plus => value,
+            UnaryKind::Load => self.builder.build_load(value.into_pointer_value(), ".load"),
         })
     }
 
-    fn call(&self, call: &Call) -> Option<BasicValueEnum<'a>> {
+    fn call(&mut self, call: &Call) -> Option<BasicValueEnum<'a>> {
         let function = self.module.get_function(&call.name).unwrap();
         let args = call
             .arguments
@@ -262,10 +326,16 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             ),
             Type::Void => None,
             Type::Unknown => unreachable!(),
+            Type::Ref(inner) | Type::MutRef(inner) => Some(
+                self.from_type_to_llvm_basic_type(inner)
+                    .unwrap()
+                    .ptr_type(AddressSpace::Generic)
+                    .as_basic_type_enum(),
+            ),
         }
     }
 
-    fn cast(&self, cast: &Cast) -> Option<BasicValueEnum<'a>> {
+    fn cast(&mut self, cast: &Cast) -> Option<BasicValueEnum<'a>> {
         let expression = self.expression(&cast.expr).unwrap();
         let target_type = self.from_type_to_llvm_basic_type(&cast.kind);
 
@@ -279,7 +349,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         )
     }
 
-    fn expression(&self, expression: &Expression) -> Option<BasicValueEnum<'a>> {
+    fn expression(&mut self, expression: &Expression) -> Option<BasicValueEnum<'a>> {
         match expression {
             Expression::Literal(literal) => self.literal(literal),
             Expression::Binary(binary) => self.binary(binary),
@@ -287,6 +357,11 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             Expression::Call(call) => self.call(call),
             Expression::Grouping(grouping) => self.expression(&grouping.expr),
             Expression::Cast(cast) => self.cast(cast),
+            Expression::Ref(reference) => Some(
+                self.find_variable_by_name(&reference.name)
+                    .value
+                    .as_basic_value_enum(),
+            ),
         }
     }
 
@@ -490,5 +565,10 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         }
         self.leave_scope();
         false
+    }
+
+    pub fn codegen(&mut self, statements: &Vec<Statement>) -> bool {
+        // I made a seperate function so I can prepare builtin functions
+        self.statements(statements)
     }
 }

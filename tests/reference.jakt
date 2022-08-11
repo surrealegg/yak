@@ -1,0 +1,12 @@
+extern function printf(anon format: raw c_char, anon number: i64) -> usize
+
+function edit(anon test2: &mut i64) {
+    *test2 = 100;
+}
+
+function main() {
+    mut test = 42;
+    printf("%d\n", test);
+    edit(&mut test);
+    printf("%d\n", test);
+}

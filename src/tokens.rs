@@ -77,6 +77,7 @@ pub enum TokenKind {
     SlashEqual,
     RightShiftEqual,
     LeftShiftEqual,
+    Ampersand,
 
     // Literal
     Identifier,
@@ -173,6 +174,7 @@ impl ToString for TokenKind {
                 TokenKind::StringType => "String",
                 TokenKind::Percent => "%",
                 TokenKind::PercentEqual => "%=",
+                TokenKind::Ampersand => "&",
             }
         )
     }

@@ -126,6 +126,7 @@ pub enum UnaryKind {
     Not,
     Plus,
     Minus,
+    Load,
 }
 
 impl TryFrom<TokenKind> for UnaryKind {
@@ -136,6 +137,7 @@ impl TryFrom<TokenKind> for UnaryKind {
             TokenKind::Not => Ok(UnaryKind::Not),
             TokenKind::Plus => Ok(UnaryKind::Plus),
             TokenKind::Minus => Ok(UnaryKind::Minus),
+            TokenKind::Asterisk => Ok(UnaryKind::Load),
             _ => Err(()),
         }
     }
@@ -157,6 +159,7 @@ impl ToString for UnaryKind {
             UnaryKind::Not => "not",
             UnaryKind::Plus => "+",
             UnaryKind::Minus => "-",
+            UnaryKind::Load => "*",
         }
         .to_string()
     }
@@ -204,6 +207,13 @@ pub struct Cast {
 }
 
 #[derive(Debug, Clone)]
+pub struct Ref {
+    pub name: String,
+    pub span: Span,
+    pub mutable: bool,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Literal(Literal),
     Binary(Binary),
@@ -211,6 +221,7 @@ pub enum Expression {
     Call(Call),
     Grouping(Grouping),
     Cast(Cast),
+    Ref(Ref),
 }
 
 #[derive(Debug, Clone)]
@@ -271,6 +282,8 @@ pub enum Type {
     String,
     Unknown,
     Raw(Box<Type>),
+    Ref(Box<Type>),
+    MutRef(Box<Type>),
 }
 
 impl ToString for Type {
@@ -295,6 +308,8 @@ impl ToString for Type {
             Type::String => "String".to_string(),
             Type::Unknown => "unknown".to_string(),
             Type::Raw(inner) => format!("raw {}", inner.to_string()),
+            Type::Ref(inner) => format!("&{}", inner.to_string()),
+            Type::MutRef(inner) => format!("&mut {}", inner.to_string()),
         }
     }
 }
@@ -302,7 +317,9 @@ impl ToString for Type {
 impl Type {
     pub fn equal(&self, other: &Type) -> bool {
         match (self, other) {
-            (Type::Raw(inner_a), Type::Raw(inner_b)) => inner_a.equal(inner_b),
+            (Type::Raw(inner_a), Type::Raw(inner_b))
+            | (Type::Ref(inner_a), Type::Ref(inner_b))
+            | (Type::MutRef(inner_a), Type::MutRef(inner_b)) => inner_a.equal(inner_b),
             (a, b) => variant_eq(a, b),
         }
     }
@@ -459,14 +476,23 @@ impl Expression {
             Expression::Call(call) => call.span,
             Expression::Grouping(grouping) => grouping.span,
             Expression::Cast(cast) => cast.span,
+            Expression::Ref(reference) => reference.span,
         }
     }
 
     pub fn get_variable_name(&self) -> String {
-        if let Expression::Literal(literal) = self {
-            if let LiteralKind::Identifier(name) = &literal.kind {
-                return name.clone();
+        match self {
+            Expression::Literal(literal) => {
+                if let LiteralKind::Identifier(name) = &literal.kind {
+                    return name.clone();
+                }
             }
+            Expression::Unary(unary) => {
+                if let UnaryKind::Load = &unary.kind {
+                    return unary.expr.get_variable_name();
+                }
+            }
+            _ => {}
         }
         return String::new();
     }

@@ -1,7 +1,7 @@
 use crate::{
     ast::{
         Argument, Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function,
-        Grouping, If, Literal, LiteralKind, Param, Prototype, Return, Statement, Type, Unary,
+        Grouping, If, Literal, LiteralKind, Param, Prototype, Ref, Return, Statement, Type, Unary,
         UnaryKind, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
@@ -230,7 +230,12 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expression, Error> {
-        if let Some(op) = self.matches(&[TokenKind::Plus, TokenKind::Minus, TokenKind::Not]) {
+        if let Some(op) = self.matches(&[
+            TokenKind::Plus,
+            TokenKind::Minus,
+            TokenKind::Not,
+            TokenKind::Asterisk,
+        ]) {
             Ok(Expression::Unary(Unary {
                 expr: Box::from(self.call()?),
                 span: self.span(),
@@ -242,8 +247,22 @@ impl Parser {
         }
     }
 
+    fn reference(&mut self) -> Result<Expression, Error> {
+        if self.matches_bool(&[TokenKind::Ampersand]) {
+            let mutable = self.matches_bool(&[TokenKind::Mut]);
+            let identifer = self.consume(&[TokenKind::Identifier])?;
+            Ok(Expression::Ref(Ref {
+                mutable,
+                name: identifer.slice.clone(),
+                span: self.span(),
+            }))
+        } else {
+            self.unary()
+        }
+    }
+
     fn assignment(&mut self) -> Result<Expression, Error> {
-        let mut left = self.unary()?;
+        let mut left = self.reference()?;
         while let Some(op) = self.matches(&[
             TokenKind::PlusEqual,
             TokenKind::MinusEqual,
@@ -254,7 +273,7 @@ impl Parser {
             TokenKind::PercentEqual,
             TokenKind::Equal,
         ]) {
-            let right = self.unary()?;
+            let right = self.reference()?;
             left = Expression::Binary(Binary {
                 span: self.span(),
                 left: Box::from(left),
@@ -445,6 +464,15 @@ impl Parser {
             TokenKind::Void => Type::Void,
             TokenKind::Char => Type::Char,
             TokenKind::StringType => Type::String,
+            TokenKind::Ampersand => {
+                self.advance();
+                let mutable = self.matches_bool(&[TokenKind::Mut]);
+                let inner = Box::new(self.consume_type()?);
+                if mutable {
+                    return Ok(Type::MutRef(inner));
+                }
+                return Ok(Type::Ref(inner));
+            }
             TokenKind::Raw => {
                 self.advance();
                 let kind = self.consume_type()?;

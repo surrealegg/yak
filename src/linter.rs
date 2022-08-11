@@ -1,7 +1,7 @@
 use crate::{
     ast::{
         BinaryKind, Expression, Function, LiteralKind, Param, Prototype, Statement, Type,
-        VariableDeclaration,
+        UnaryKind, VariableDeclaration,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     utils::Span,
@@ -59,7 +59,7 @@ impl Linter {
         None
     }
 
-    fn check_expression(&self, expression: &Expression) -> Result<Type, Error> {
+    fn check_expression(&self, expression: &mut Expression) -> Result<Type, Error> {
         match expression {
             Expression::Literal(literal) => match &literal.kind {
                 LiteralKind::Boolean(_) => Ok(Type::Bool),
@@ -79,8 +79,8 @@ impl Linter {
                 LiteralKind::Integer(_) => Ok(Type::I64),
             },
             Expression::Binary(binary) => {
-                let lhs = self.check_expression(&binary.left)?;
-                let rhs = self.check_expression(&binary.right)?;
+                let lhs = self.check_expression(&mut binary.left)?;
+                let rhs = self.check_expression(&mut binary.right)?;
 
                 if binary.kind.is_assign() {
                     let name = binary.left.get_variable_name();
@@ -126,9 +126,20 @@ impl Linter {
                 }
             }
             Expression::Unary(unary) => {
-                let expr = self.check_expression(&unary.expr)?;
+                let expr = self.check_expression(&mut unary.expr)?;
                 if unary.kind.can_apply(&expr) {
-                    Ok(expr)
+                    if let UnaryKind::Load = unary.kind {
+                        match expr {
+                            Type::Ref(reference) | Type::MutRef(reference) => Ok(*reference),
+                            _ => Err(Error {
+                                kind: ErrorKind::DeferenceNonPointerValue,
+                                severity: ErrorSeverity::Error,
+                                span: unary.span.clone(),
+                            }),
+                        }
+                    } else {
+                        Ok(expr)
+                    }
                 } else {
                     Err(Error {
                         kind: ErrorKind::CantApplyUnary(unary.kind.clone(), expr),
@@ -150,10 +161,10 @@ impl Linter {
                         });
                     }
                     for i in 0..call.arguments.len() {
-                        let expr = &call.arguments[i];
-                        let item_type = self.check_expression(&expr.value)?;
+                        let expr = &mut call.arguments[i];
+                        let item_type = self.check_expression(&mut expr.value)?;
                         if let Some(param) = function.params.get(i) {
-                            if item_type != param.kind {
+                            if !item_type.equal(&param.kind) {
                                 return Err(Error {
                                     kind: ErrorKind::MismatchedTypes(param.kind.clone(), item_type),
                                     severity: ErrorSeverity::Error,
@@ -186,9 +197,9 @@ impl Linter {
                     })
                 }
             }
-            Expression::Grouping(grouping) => self.check_expression(&grouping.expr),
+            Expression::Grouping(grouping) => self.check_expression(&mut grouping.expr),
             Expression::Cast(cast) => {
-                let current_expression = self.check_expression(&cast.expr)?;
+                let current_expression = self.check_expression(&mut cast.expr)?;
                 if current_expression.can_cast(&cast.kind) {
                     Ok(cast.kind.clone())
                 } else {
@@ -196,6 +207,29 @@ impl Linter {
                         kind: ErrorKind::NonPrimitive(current_expression, cast.kind.clone()),
                         severity: ErrorSeverity::Error,
                         span: cast.span,
+                    })
+                }
+            }
+            Expression::Ref(reference) => {
+                if let Some(variable) = self.find_variable_by_name(&reference.name) {
+                    if !variable.mutable && reference.mutable {
+                        return Err(Error {
+                            kind: ErrorKind::MutableReferenceNotAllowed,
+                            severity: ErrorSeverity::Error,
+                            span: reference.span,
+                        });
+                    }
+                    let boxed = Box::from(variable.kind.clone());
+                    Ok(if reference.mutable {
+                        Type::MutRef(boxed)
+                    } else {
+                        Type::Ref(boxed)
+                    })
+                } else {
+                    Err(Error {
+                        kind: ErrorKind::VariableNotFound(reference.name.clone()),
+                        span: expression.span(),
+                        severity: ErrorSeverity::Error,
                     })
                 }
             }
@@ -252,7 +286,7 @@ impl Linter {
         Ok(returned_kind)
     }
 
-    fn create_variable(&self, decl: &VariableDeclaration) -> Result<StoredVariable, Error> {
+    fn create_variable(&self, decl: &mut VariableDeclaration) -> Result<StoredVariable, Error> {
         if let Some(_) = self
             .variables
             .iter()
@@ -265,7 +299,7 @@ impl Linter {
             });
         }
 
-        let kind = self.check_expression(&decl.value)?;
+        let kind = self.check_expression(&mut decl.value)?;
         if decl.variable_type != Type::Unknown && kind != decl.variable_type {
             return Err(Error {
                 kind: ErrorKind::MismatchedTypes(decl.variable_type.clone(), kind),
@@ -330,7 +364,7 @@ impl Linter {
                 types.push(kind);
             }
             Statement::While(while_block) => {
-                let check = self.check_expression(&while_block.expression)?;
+                let check = self.check_expression(&mut while_block.expression)?;
                 if check != Type::Bool {
                     return Err(Error {
                         kind: ErrorKind::MismatchedTypes(Type::Bool, check),
@@ -362,7 +396,7 @@ impl Linter {
                 }
             }
             Statement::If(if_statement) => {
-                let check = self.check_expression(&if_statement.expression)?;
+                let check = self.check_expression(&mut if_statement.expression)?;
                 if check != Type::Bool {
                     return Err(Error {
                         kind: ErrorKind::MismatchedTypes(Type::Bool, check),
@@ -410,7 +444,7 @@ impl Linter {
                 types.push(kind);
             }
             Statement::Return(value) => {
-                types.push(if let Some(expression) = &value.expression {
+                types.push(if let Some(expression) = &mut value.expression {
                     self.check_expression(expression)?
                 } else {
                     Type::Void

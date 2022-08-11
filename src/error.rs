@@ -31,6 +31,8 @@ pub enum ErrorKind {
     CantAssignImmutableVariable(String),
     AmbiguousType,
     DeadCode,
+    MutableReferenceNotAllowed,
+    DeferenceNonPointerValue,
 }
 
 impl ToString for ErrorKind {
@@ -104,6 +106,10 @@ impl ToString for ErrorKind {
             }
             ErrorKind::DeadCode => "dead code after return statement".to_string(),
             ErrorKind::AmbiguousType => "an ambiguous type".to_string(),
+            ErrorKind::MutableReferenceNotAllowed => {
+                "cannot make mutable reference to immutable value".to_string()
+            }
+            ErrorKind::DeferenceNonPointerValue => "dereference of a non-pointer value".to_string(),
         }
     }
 }
