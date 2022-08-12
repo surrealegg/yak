@@ -1,3 +1,5 @@
+use std::process::ExitCode;
+
 use crate::{
     ast::{BinaryKind, Type, UnaryKind},
     tokens::TokenKind,
@@ -33,6 +35,46 @@ pub enum ErrorKind {
     DeadCode,
     MutableReferenceNotAllowed,
     DeferenceNonPointerValue,
+}
+
+impl From<ErrorKind> for u8 {
+    fn from(kind: ErrorKind) -> Self {
+        match kind {
+            ErrorKind::UnexpectedToken => 1,
+            ErrorKind::UnexpectedBinaryOperator => 2,
+            ErrorKind::UnexpectedUnaryOperator => 3,
+            ErrorKind::ExpectedLiteral => 4,
+            ErrorKind::InvalidInteger => 5,
+            ErrorKind::ExpectedToken(_) => 6,
+            ErrorKind::CPPInteropNotSupported => 7,
+            ErrorKind::ExpectedType => 8,
+            ErrorKind::ExpectedAnItem => 9,
+            ErrorKind::RedefinitionVariable(_) => 10,
+            ErrorKind::VariableNotFound(_) => 11,
+            ErrorKind::BinaryBetweenIncompatibleTypes(_, _, _) => 12,
+            ErrorKind::MismatchedTypes(_, _) => 13,
+            ErrorKind::FunctionNotFound(_) => 14,
+            ErrorKind::BreakOutsideLoop => 15,
+            ErrorKind::ContinueOutsideLoop => 16,
+            ErrorKind::FunctionArgumentCountMismatch(_, _) => 17,
+            ErrorKind::RedefinedName(_) => 18,
+            ErrorKind::NonPrimitive(_, _) => 19,
+            ErrorKind::WrongLabel(_, _) => 20,
+            ErrorKind::CantApplyUnary(_, _) => 21,
+            ErrorKind::InvalidLeftHandSideAssignment => 22,
+            ErrorKind::CantAssignImmutableVariable(_) => 23,
+            ErrorKind::AmbiguousType => 24,
+            ErrorKind::DeadCode => 25,
+            ErrorKind::MutableReferenceNotAllowed => 26,
+            ErrorKind::DeferenceNonPointerValue => 27,
+        }
+    }
+}
+
+impl From<ErrorKind> for ExitCode {
+    fn from(kind: ErrorKind) -> Self {
+        ExitCode::from(u8::from(kind))
+    }
 }
 
 impl ToString for ErrorKind {

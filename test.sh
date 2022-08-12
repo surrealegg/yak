@@ -25,8 +25,7 @@ done
 
 for FILE in $SHOULD_FAIL; do
     RESULT=$(cargo -q run $FILE 2>/dev/null);
-    CODE=$?
-    if [ $CODE -ne 0 ]; then
+    if [ $? -eq $(cat $FILE.expected) ]; then
         printf "${WHITE}[${GREEN}OK${WHITE}]${NC}"
     else
         printf "${WHITE}[${RED}KO${WHITE}]${NC}"

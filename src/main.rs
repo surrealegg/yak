@@ -79,7 +79,7 @@ fn main() -> ExitCode {
     let contents = fs::read_to_string(&filename).unwrap();
     if let Err(error) = compile(&filename, &contents) {
         eprintln!("{}", error.show(contents.as_bytes(), &filename).unwrap());
-        ExitCode::from(1)
+        ExitCode::from(error.kind)
     } else {
         ExitCode::from(0)
     }
