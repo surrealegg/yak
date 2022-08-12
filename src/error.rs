@@ -35,6 +35,7 @@ pub enum ErrorKind {
     DeadCode,
     MutableReferenceNotAllowed,
     DeferenceNonPointerValue,
+    UnnecessaryUnsafe,
 }
 
 impl From<ErrorKind> for u8 {
@@ -67,6 +68,7 @@ impl From<ErrorKind> for u8 {
             ErrorKind::DeadCode => 25,
             ErrorKind::MutableReferenceNotAllowed => 26,
             ErrorKind::DeferenceNonPointerValue => 27,
+            ErrorKind::UnnecessaryUnsafe => 28,
         }
     }
 }
@@ -152,6 +154,7 @@ impl ToString for ErrorKind {
                 "cannot make mutable reference to immutable value".to_string()
             }
             ErrorKind::DeferenceNonPointerValue => "dereference of a non-pointer value".to_string(),
+            ErrorKind::UnnecessaryUnsafe => "unnecessary unsafe block".to_string(),
         }
     }
 }

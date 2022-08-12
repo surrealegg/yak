@@ -550,6 +550,9 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                 self.builder.build_return(None);
                 return true;
             }
+            Statement::Unsafe(unsafe_statement) => {
+                self.statements(&unsafe_statement.statements);
+            }
         }
         return false;
     }

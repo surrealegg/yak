@@ -2,7 +2,7 @@ use crate::{
     ast::{
         Argument, Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function,
         Grouping, If, Literal, LiteralKind, Param, Prototype, Ref, Return, Statement, Type, Unary,
-        UnaryKind, VariableDeclaration, While,
+        UnaryKind, Unsafe, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -548,6 +548,16 @@ impl Parser {
         }))
     }
 
+    fn unsafe_statement(&mut self) -> Result<Statement, Error> {
+        self.must_be_in_function()?;
+        self.advance();
+        let block = self.block()?;
+        Ok(Statement::Unsafe(Unsafe {
+            statements: block,
+            span: self.span(),
+        }))
+    }
+
     fn statement(&mut self) -> Result<Statement, Error> {
         self.ignore_whitespace();
         self.start = self.current_span.start;
@@ -566,6 +576,7 @@ impl Parser {
                 span: self.span(),
             })),
             TokenKind::Loop => self.loop_statement(),
+            TokenKind::Unsafe => self.unsafe_statement(),
             TokenKind::While => self.while_statement(),
             TokenKind::If => self.if_statement(),
             TokenKind::Return => {

@@ -28,6 +28,7 @@ pub struct Linter {
     functions: Vec<StoredFunction>,
     temp_function: Option<StoredFunction>,
     in_loop: usize,
+    in_unsafe: usize,
     warnings: Vec<Error>,
 }
 
@@ -40,6 +41,7 @@ impl Linter {
             temp_function: None,
             scope: 0,
             in_loop: 0,
+            in_unsafe: 0,
         }
     }
 
@@ -448,6 +450,19 @@ impl Linter {
                     Type::Void
                 });
             }
+            Statement::Unsafe(unsafe_statement) => {
+                if self.in_unsafe > 0 {
+                    self.warnings.push(Error {
+                        kind: ErrorKind::UnnecessaryUnsafe,
+                        severity: ErrorSeverity::Warning,
+                        span: unsafe_statement.span,
+                    });
+                }
+                self.in_unsafe += 1;
+                let kind = Type::merge(&self.check_statements(&mut unsafe_statement.statements)?);
+                self.in_unsafe -= 1;
+                types.push(kind);
+            }
         })
     }
 
@@ -462,11 +477,11 @@ impl Linter {
 
         for kind in result.iter() {
             if kind == &Type::Unknown {
-                // TODO: Span?
+                // FIXME: statements[0].span() may crash
                 return Err(Error {
                     kind: ErrorKind::AmbiguousType,
                     severity: ErrorSeverity::Error,
-                    span: Span::default(),
+                    span: statements[0].span(),
                 });
             }
         }

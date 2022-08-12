@@ -44,6 +44,7 @@ pub enum TokenKind {
     Break,
     Continue,
     Cpp,
+    Unsafe,
 
     // Symbols
     Percent,
@@ -175,6 +176,7 @@ impl ToString for TokenKind {
                 TokenKind::Percent => "%",
                 TokenKind::PercentEqual => "%=",
                 TokenKind::Ampersand => "&",
+                TokenKind::Unsafe => "unsafe",
             }
         )
     }
@@ -227,6 +229,7 @@ impl TokenKind {
             "break" => TokenKind::Break,
             "continue" => TokenKind::Continue,
             "cpp" => TokenKind::Cpp,
+            "unsafe" => TokenKind::Unsafe,
             _ => TokenKind::Identifier,
         }
     }

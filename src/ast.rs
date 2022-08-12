@@ -457,6 +457,12 @@ pub struct Return {
 }
 
 #[derive(Debug, Clone)]
+pub struct Unsafe {
+    pub statements: Vec<Statement>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
 pub enum Statement {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),
@@ -469,6 +475,7 @@ pub enum Statement {
     Prototype(Prototype),
     Function(Function),
     Return(Return),
+    Unsafe(Unsafe),
 }
 
 impl Statement {
@@ -485,6 +492,7 @@ impl Statement {
             Statement::Prototype(prototype) => prototype.span,
             Statement::Function(function) => function.span,
             Statement::Return(return_statement) => return_statement.span,
+            Statement::Unsafe(unsafe_statement) => unsafe_statement.span,
         }
     }
 }
