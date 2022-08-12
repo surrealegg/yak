@@ -9,8 +9,6 @@ use crate::{
 
 pub struct Lexer {
     cursor: usize,
-    column: usize,
-    line: usize,
     input: String,
     bytes: Vec<u8>,
 }
@@ -20,8 +18,6 @@ impl Lexer {
         let bytes = input.as_bytes().to_vec();
         Self {
             cursor: 0,
-            line: 0,
-            column: 0,
             bytes,
             input,
         }
@@ -54,9 +50,8 @@ impl Lexer {
         let result = Token {
             span: Span {
                 id: 0,
-                line: self.line,
-                start: self.column,
-                end: self.column + length,
+                start: self.cursor,
+                end: self.cursor + length,
             },
             kind,
             slice: self
@@ -66,7 +61,6 @@ impl Lexer {
                 .to_string(),
         };
         self.cursor += length;
-        self.column += length;
         Ok(result)
     }
 
@@ -95,9 +89,8 @@ impl Lexer {
                     kind: ErrorKind::UnexpectedToken,
                     severity: ErrorSeverity::Error,
                     span: Span {
-                        line: self.line,
-                        start: self.column,
-                        end: self.column + length,
+                        start: self.cursor,
+                        end: self.cursor + length,
                         id: 0,
                     },
                 });
@@ -157,9 +150,8 @@ impl Lexer {
                             kind: ErrorKind::UnexpectedToken,
                             severity: ErrorSeverity::Error,
                             span: Span {
-                                line: self.line,
-                                start: self.column,
-                                end: self.column + length,
+                                start: self.cursor,
+                                end: self.cursor + length,
                                 id: 0,
                             },
                         });
@@ -195,9 +187,8 @@ impl Lexer {
                 kind: ErrorKind::UnexpectedToken,
                 severity: ErrorSeverity::Error,
                 span: Span {
-                    line: self.line,
-                    start: self.column - 1,
-                    end: self.column,
+                    start: self.cursor - 1,
+                    end: self.cursor,
                     id: 0,
                 },
             })
@@ -207,7 +198,6 @@ impl Lexer {
     fn next(&mut self) -> Result<Token, Error> {
         // Ignore whitespace
         while is_space(self.peek(0)) {
-            self.column += 1;
             self.cursor += 1;
         }
 
@@ -251,8 +241,6 @@ impl Lexer {
             b'&' => self.create_token(TokenKind::Ampersand, 1),
             b'\n' => {
                 let token = self.create_token(TokenKind::EndLine, 1);
-                self.line += 1;
-                self.column = 0;
                 token
             }
             rest => self.rest(rest),

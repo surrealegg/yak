@@ -197,7 +197,7 @@ impl Error {
             self.severity.to_string(),
             self.kind.clone().to_string(),
             path,
-            self.span.line + 1,
+            1,
             self.span.start,
         );
         let color = self.severity.to_color();

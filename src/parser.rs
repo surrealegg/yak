@@ -32,7 +32,6 @@ impl Parser {
 
     fn span(&self) -> Span {
         Span {
-            line: self.previous_span.line,
             start: self.start,
             end: self.previous_span.end,
             id: self.previous_span.id,
@@ -76,7 +75,6 @@ impl Parser {
             Ok(token)
         } else {
             let mut span = Span {
-                line: self.current_span.line,
                 start: self.current_span.end,
                 end: self.current_span.end + 1,
                 id: self.current_span.id,
@@ -412,7 +410,10 @@ impl Parser {
         self.must_be_in_function()?;
         self.consume(&[TokenKind::Loop])?;
         let block = self.block()?;
-        Ok(Statement::Loop(Block { statements: block }))
+        Ok(Statement::Loop(Block {
+            statements: block,
+            span: self.span(),
+        }))
     }
 
     fn while_statement(&mut self) -> Result<Statement, Error> {
@@ -420,7 +421,11 @@ impl Parser {
         self.consume(&[TokenKind::While])?;
         let expression = self.expression()?;
         let block = self.block()?;
-        Ok(Statement::While(While { block, expression }))
+        Ok(Statement::While(While {
+            block,
+            expression,
+            span: self.span(),
+        }))
     }
 
     fn if_statement(&mut self) -> Result<Statement, Error> {
@@ -442,6 +447,7 @@ impl Parser {
             true_block,
             else_block,
             expression,
+            span: self.span(),
         }))
     }
 
@@ -538,6 +544,7 @@ impl Parser {
         Ok(Statement::Function(Function {
             prototype,
             statements,
+            span: self.span(),
         }))
     }
 
@@ -556,6 +563,7 @@ impl Parser {
             TokenKind::Mut => self.variable_declaration(true),
             TokenKind::CurlyBracketOpen => Ok(Statement::Block(Block {
                 statements: self.block()?,
+                span: self.span(),
             })),
             TokenKind::Loop => self.loop_statement(),
             TokenKind::While => self.while_statement(),

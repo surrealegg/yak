@@ -236,12 +236,14 @@ pub struct VariableDeclaration {
 #[derive(Debug, Clone)]
 pub struct Block {
     pub statements: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
 pub struct While {
     pub expression: Expression,
     pub block: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -259,6 +261,7 @@ pub struct If {
     pub expression: Expression,
     pub true_block: Vec<Statement>,
     pub else_block: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -444,6 +447,7 @@ pub struct Prototype {
 pub struct Function {
     pub prototype: Prototype,
     pub statements: Vec<Statement>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]
@@ -465,6 +469,24 @@ pub enum Statement {
     Prototype(Prototype),
     Function(Function),
     Return(Return),
+}
+
+impl Statement {
+    pub fn span(&self) -> Span {
+        match self {
+            Statement::Expression(expression) => expression.span(),
+            Statement::VariableDeclaration(variable_declaration) => variable_declaration.span,
+            Statement::Block(block) => block.span,
+            Statement::Loop(block) => block.span,
+            Statement::While(while_statement) => while_statement.span,
+            Statement::Break(break_statement) => break_statement.span,
+            Statement::Continue(continue_statement) => continue_statement.span,
+            Statement::If(if_statement) => if_statement.span,
+            Statement::Prototype(prototype) => prototype.span,
+            Statement::Function(function) => function.span,
+            Statement::Return(return_statement) => return_statement.span,
+        }
+    }
 }
 
 impl Expression {

@@ -2,7 +2,6 @@ use std::ops::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Span {
-    pub line: usize,
     pub start: usize,
     pub end: usize,
     pub id: usize,
@@ -11,42 +10,58 @@ pub struct Span {
 impl Span {
     pub fn show(&self, contents: &[u8], color: &str) -> Option<String> {
         let lines = obtain_ranges(contents);
-        let line = lines.get(self.line)?;
-        let str = String::from_utf8_lossy(&contents[line.clone()]);
-        let code = format!("{:4}| {}\n", self.line + 1, str);
-        let message = format!(
-            "    | {}{}{}\u{001b}[0m",
-            " ".repeat(self.start),
-            color,
-            "^".repeat(self.end - self.start)
-        );
-        let mut result = format!("{}{}", code, message);
-        if self.line >= 1 {
-            if let Some(prev_line) = lines.get(self.line - 1) {
-                result = format!(
-                    "{:4}| {}\n{}",
-                    self.line,
-                    String::from_utf8_lossy(&contents[prev_line.clone()]),
-                    result
-                );
-            }
+        let shown_lines = lines
+            .iter()
+            .cloned()
+            .enumerate()
+            .filter(|(_, item)| item.contains(&self.start) || item.contains(&self.end))
+            .collect::<Vec<(usize, Range<usize>)>>();
+
+        let code = shown_lines
+            .iter()
+            .map(|(line, item)| {
+                (
+                    *line,
+                    String::from_utf8_lossy(&contents[item.start..item.end]).to_string(),
+                )
+            })
+            .collect::<Vec<(usize, String)>>();
+
+        let arrows = shown_lines
+            .iter()
+            .map(|(_, line)| {
+                format!(
+                    "{}{}\u{001b}[0m",
+                    color,
+                    line.clone()
+                        .map(|index| {
+                            if index >= self.start && index <= self.end {
+                                '^'
+                            } else {
+                                ' '
+                            }
+                        })
+                        .collect::<String>()
+                )
+            })
+            .collect::<Vec<String>>();
+
+        let mut merged = vec![];
+        for ((line, lhs), rhs) in code.iter().cloned().zip(arrows) {
+            merged.push(format!("{:4}| {}\n", line + 1, lhs));
+            merged.push(format!("{:4}| {}\n", line + 1, rhs));
         }
-        if let Some(next_line) = lines.get(self.line + 1) {
-            result = format!(
-                "{}\n{:4}| {}",
-                result,
-                self.line + 2,
-                String::from_utf8_lossy(&contents[next_line.clone()])
-            );
-        }
-        Some(result)
+
+        merged
+            .iter()
+            .cloned()
+            .reduce(|lhs, rhs| format!("{}{}", lhs, rhs))
     }
 }
 
 impl Default for Span {
     fn default() -> Self {
         Self {
-            line: 0,
             start: 0,
             end: 0,
             id: 0,
@@ -57,7 +72,6 @@ impl Default for Span {
 impl From<Range<usize>> for Span {
     fn from(value: Range<usize>) -> Self {
         Span {
-            line: 0,
             start: value.start,
             end: value.end,
             id: 0,
