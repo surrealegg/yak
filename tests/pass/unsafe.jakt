@@ -1,0 +1,12 @@
+extern function printf(anon format: raw c_char) -> usize
+
+function main() {
+    unsafe {
+        printf("For now it does nothing :P\n");
+    }
+    unsafe {
+        unsafe {
+            printf("Warning check\n");
+        }   
+    }
+}
