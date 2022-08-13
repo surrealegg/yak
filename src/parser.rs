@@ -1,8 +1,8 @@
 use crate::{
     ast::{
-        Argument, Binary, BinaryKind, Block, Break, Call, Cast, Continue, Expression, Function,
-        Grouping, If, Literal, LiteralKind, Param, Prototype, Ref, Return, Statement, Type, Unary,
-        UnaryKind, Unsafe, VariableDeclaration, While,
+        Argument, Array, ArrayAccess, Binary, BinaryKind, Block, Break, Call, Cast, Continue,
+        Expression, Function, Grouping, If, Literal, LiteralKind, Param, Prototype, Ref, Return,
+        Statement, Type, Unary, UnaryKind, Unsafe, VariableDeclaration, While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -182,11 +182,39 @@ impl Parser {
                 span: self.span(),
             }));
             self.consume(&[TokenKind::ParenthesesClose])?;
-            result
-        } else {
-            let literal = self.literal()?;
-            self.advance();
+            return result;
+        }
 
+        if self.matches_bool(&[TokenKind::SquareBracketOpen]) {
+            let mut values = vec![];
+            if !self.check(TokenKind::SquareBracketClose) {
+                loop {
+                    values.push(self.expression()?);
+                    if !self.matches_bool(&[TokenKind::Comma]) {
+                        break;
+                    }
+                }
+            }
+            self.consume(&[TokenKind::SquareBracketClose])?;
+            return Ok(Expression::Array(Array {
+                span: self.span(),
+                values,
+                kind: Type::Unknown,
+            }));
+        }
+
+        let literal = self.literal()?;
+        self.advance();
+
+        if self.matches_bool(&[TokenKind::SquareBracketOpen]) {
+            let index = self.expression()?;
+            self.consume(&[TokenKind::SquareBracketClose])?;
+            Ok(Expression::ArrayAccess(ArrayAccess {
+                expression: Box::from(literal),
+                index: Box::from(index),
+                span: self.span(),
+            }))
+        } else {
             Ok(literal)
         }
     }

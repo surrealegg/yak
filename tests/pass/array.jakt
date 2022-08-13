@@ -1,0 +1,11 @@
+extern function printf(anon format: raw c_char, anon index: i64, anon number: i64, anon chr: c_char) -> usize
+
+function main() {
+    let x = [1, 2, 3, 4];
+    mut i = 0;
+    let format = "%d: %d %c\n";
+    while i < 4 {
+        printf(format, i, x[i] * x[i], format[0]);
+        i += 1;
+    }
+}

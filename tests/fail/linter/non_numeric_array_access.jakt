@@ -1,0 +1,4 @@
+function main() {
+    let x = [100, 200, 300];
+    x["whoa"]
+}

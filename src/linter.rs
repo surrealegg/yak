@@ -235,6 +235,57 @@ impl Linter {
                     })
                 }
             }
+            Expression::Array(array) => {
+                let mut types = vec![];
+                for item in array.values.iter_mut() {
+                    types.push(self.check_expression(item)?);
+                }
+                array.kind = Type::merge(&types);
+                if array.kind.equal(&Type::Unknown) {
+                    Err(Error {
+                        kind: ErrorKind::AmbiguousType,
+                        severity: ErrorSeverity::Error,
+                        span: array.span,
+                    })
+                } else {
+                    Ok(Type::Array(
+                        Box::from(array.kind.clone()),
+                        types.len() as u32,
+                    ))
+                }
+            }
+            Expression::ArrayAccess(array_access) => {
+                let name = array_access.expression.get_variable_name();
+                let index = self.check_expression(&mut array_access.index)?;
+                if !index.is_integer() {
+                    return Err(Error {
+                        kind: ErrorKind::IndexMustBeInteger,
+                        severity: ErrorSeverity::Error,
+                        span: array_access.span,
+                    });
+                }
+
+                if let Some(variable) = self.find_variable_by_name(&name) {
+                    match &variable.kind {
+                        Type::Raw(kind) | Type::Array(kind, _) => {
+                            return Ok(*kind.clone());
+                        }
+                        _ => {
+                            return Err(Error {
+                                kind: ErrorKind::AccessValueToNonArrayType,
+                                severity: ErrorSeverity::Error,
+                                span: array_access.span,
+                            });
+                        }
+                    }
+                }
+
+                return Err(Error {
+                    kind: ErrorKind::VariableNotFound(name),
+                    severity: ErrorSeverity::Error,
+                    span: array_access.span,
+                });
+            }
         }
     }
 

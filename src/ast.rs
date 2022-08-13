@@ -214,6 +214,20 @@ pub struct Ref {
 }
 
 #[derive(Debug, Clone)]
+pub struct Array {
+    pub values: Vec<Expression>,
+    pub kind: Type,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ArrayAccess {
+    pub expression: Box<Expression>,
+    pub index: Box<Expression>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression {
     Literal(Literal),
     Binary(Binary),
@@ -222,6 +236,8 @@ pub enum Expression {
     Grouping(Grouping),
     Cast(Cast),
     Ref(Ref),
+    Array(Array),
+    ArrayAccess(ArrayAccess),
 }
 
 #[derive(Debug, Clone)]
@@ -287,6 +303,7 @@ pub enum Type {
     Raw(Box<Type>),
     Ref(Box<Type>),
     MutRef(Box<Type>),
+    Array(Box<Type>, u32),
 }
 
 impl ToString for Type {
@@ -313,6 +330,7 @@ impl ToString for Type {
             Type::Raw(inner) => format!("raw {}", inner.to_string()),
             Type::Ref(inner) => format!("&{}", inner.to_string()),
             Type::MutRef(inner) => format!("&mut {}", inner.to_string()),
+            Type::Array(inner, _) => format!("[{}]", inner.to_string()),
         }
     }
 }
@@ -322,7 +340,8 @@ impl Type {
         match (self, other) {
             (Type::Raw(inner_a), Type::Raw(inner_b))
             | (Type::Ref(inner_a), Type::Ref(inner_b))
-            | (Type::MutRef(inner_a), Type::MutRef(inner_b)) => inner_a.equal(inner_b),
+            | (Type::MutRef(inner_a), Type::MutRef(inner_b))
+            | (Type::Array(inner_a, _), Type::Array(inner_b, _)) => inner_a.equal(inner_b),
             (a, b) => variant_eq(a, b),
         }
     }
@@ -507,6 +526,8 @@ impl Expression {
             Expression::Grouping(grouping) => grouping.span,
             Expression::Cast(cast) => cast.span,
             Expression::Ref(reference) => reference.span,
+            Expression::Array(array) => array.span,
+            Expression::ArrayAccess(array_access) => array_access.span,
         }
     }
 
@@ -521,6 +542,9 @@ impl Expression {
                 if let UnaryKind::Load = &unary.kind {
                     return unary.expr.get_variable_name();
                 }
+            }
+            Expression::ArrayAccess(array_access) => {
+                return array_access.expression.get_variable_name();
             }
             _ => {}
         }

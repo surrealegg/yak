@@ -10,14 +10,15 @@ use inkwell::{
 };
 
 use crate::ast::{
-    Binary, BinaryKind, Call, Cast, Expression, Function, If, Literal, LiteralKind, Prototype,
-    Statement, Type, Unary, UnaryKind, VariableDeclaration, While,
+    Array, ArrayAccess, Binary, BinaryKind, Call, Cast, Expression, Function, If, Literal,
+    LiteralKind, Prototype, Statement, Type, Unary, UnaryKind, VariableDeclaration, While,
 };
 
 #[derive(Debug, Clone)]
 pub struct StoredVariable<'a> {
     pub name: String,
     pub scope: usize,
+    pub kind: BasicTypeEnum<'a>,
     pub value: PointerValue<'a>,
 }
 
@@ -332,6 +333,12 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .ptr_type(AddressSpace::Generic)
                     .as_basic_type_enum(),
             ),
+            Type::Array(inner, size) => Some(
+                self.from_type_to_llvm_basic_type(inner)
+                    .unwrap()
+                    .array_type(*size)
+                    .as_basic_type_enum(),
+            ),
         }
     }
 
@@ -349,6 +356,57 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         )
     }
 
+    fn array(&mut self, array: &Array) -> Option<BasicValueEnum<'a>> {
+        let kind = self.from_type_to_llvm_basic_type(&array.kind).unwrap();
+        let alloca = self.builder.build_array_alloca(
+            kind,
+            self.context
+                .i64_type()
+                .const_int(array.values.len() as u64, false),
+            ".alloca_array",
+        );
+
+        for (index, expression) in array.values.iter().enumerate() {
+            unsafe {
+                self.builder.build_store(
+                    self.builder.build_in_bounds_gep(
+                        alloca,
+                        &[self.context.i64_type().const_int(index as u64, false)],
+                        ".load",
+                    ),
+                    self.expression(expression).unwrap(),
+                );
+            }
+        }
+
+        Some(alloca.as_basic_value_enum())
+    }
+
+    fn array_access(&mut self, array_access: &ArrayAccess) -> Option<BasicValueEnum<'a>> {
+        let variable = self.find_variable_by_name(&array_access.expression.get_variable_name());
+        let ptr = self.builder.build_load(variable.value, ".load");
+
+        // NOTE: We must make sure that the pointer is loaded
+        let need_loading = self.need_loading;
+        self.need_loading = true;
+        let index = self
+            .expression(&array_access.index)
+            .unwrap()
+            .into_int_value();
+        self.need_loading = need_loading;
+
+        unsafe {
+            let temp =
+                self.builder
+                    .build_in_bounds_gep(ptr.into_pointer_value(), &[index], ".load_ref");
+            Some(if self.need_loading {
+                self.builder.build_load(temp, ".load_access")
+            } else {
+                temp.as_basic_value_enum()
+            })
+        }
+    }
+
     fn expression(&mut self, expression: &Expression) -> Option<BasicValueEnum<'a>> {
         match expression {
             Expression::Literal(literal) => self.literal(literal),
@@ -362,6 +420,8 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .value
                     .as_basic_value_enum(),
             ),
+            Expression::Array(array) => self.array(array),
+            Expression::ArrayAccess(array_access) => self.array_access(array_access),
         }
     }
 
@@ -370,6 +430,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         let alloca = self.builder.build_alloca(value.get_type(), &decl.name);
         self.builder.build_store(alloca, value);
         self.variables.push(StoredVariable {
+            kind: value.get_type(),
             name: decl.name.clone(),
             scope: self.scope,
             value: alloca,
@@ -504,6 +565,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .build_alloca(params.0.get_type(), &params.1.name);
                 self.builder.build_store(aloca, params.0);
                 self.variables.push(StoredVariable {
+                    kind: params.0.get_type(),
                     name: params.1.name.clone(),
                     scope: self.scope + 1,
                     value: aloca,

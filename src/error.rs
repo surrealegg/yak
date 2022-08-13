@@ -36,6 +36,8 @@ pub enum ErrorKind {
     MutableReferenceNotAllowed,
     DeferenceNonPointerValue,
     UnnecessaryUnsafe,
+    AccessValueToNonArrayType,
+    IndexMustBeInteger,
 }
 
 impl From<ErrorKind> for u8 {
@@ -69,6 +71,8 @@ impl From<ErrorKind> for u8 {
             ErrorKind::MutableReferenceNotAllowed => 26,
             ErrorKind::DeferenceNonPointerValue => 27,
             ErrorKind::UnnecessaryUnsafe => 28,
+            ErrorKind::AccessValueToNonArrayType => 29,
+            ErrorKind::IndexMustBeInteger => 30,
         }
     }
 }
@@ -155,6 +159,8 @@ impl ToString for ErrorKind {
             }
             ErrorKind::DeferenceNonPointerValue => "dereference of a non-pointer value".to_string(),
             ErrorKind::UnnecessaryUnsafe => "unnecessary unsafe block".to_string(),
+            ErrorKind::AccessValueToNonArrayType => "access value of non array type".to_string(),
+            ErrorKind::IndexMustBeInteger => "index must be an integer".to_string(),
         }
     }
 }
