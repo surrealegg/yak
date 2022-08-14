@@ -84,27 +84,6 @@ impl Linter {
                 let lhs = self.check_expression(&mut binary.left)?;
                 let rhs = self.check_expression(&mut binary.right)?;
 
-                if binary.kind.is_assign() {
-                    let name = binary.left.get_variable_name();
-                    if name.is_empty() {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidLeftHandSideAssignment,
-                            severity: ErrorSeverity::Error,
-                            span: binary.span,
-                        });
-                    }
-
-                    if let Some(variable) = self.find_variable_by_name(&name) {
-                        if !variable.mutable {
-                            return Err(Error {
-                                kind: ErrorKind::CantAssignImmutableVariable(name),
-                                severity: ErrorSeverity::Error,
-                                span: binary.span,
-                            });
-                        }
-                    }
-                }
-
                 if !lhs.equal(&rhs) || (binary.kind == BinaryKind::Modulo && !lhs.is_integer()) {
                     Err(Error {
                         kind: ErrorKind::BinaryBetweenIncompatibleTypes(
@@ -255,7 +234,7 @@ impl Linter {
                 }
             }
             Expression::ArrayAccess(array_access) => {
-                let name = array_access.expression.get_variable_name();
+                let expr = self.check_expression(&mut array_access.expression)?;
                 let index = self.check_expression(&mut array_access.index)?;
                 if !index.is_integer() {
                     return Err(Error {
@@ -265,26 +244,45 @@ impl Linter {
                     });
                 }
 
-                if let Some(variable) = self.find_variable_by_name(&name) {
-                    match &variable.kind {
-                        Type::Raw(kind) | Type::Array(kind, _) => {
-                            return Ok(*kind.clone());
-                        }
-                        _ => {
-                            return Err(Error {
-                                kind: ErrorKind::AccessValueToNonArrayType,
-                                severity: ErrorSeverity::Error,
-                                span: array_access.span,
-                            });
-                        }
+                match &expr {
+                    Type::Raw(kind) | Type::Array(kind, _) => {
+                        return Ok(*kind.clone());
+                    }
+                    _ => {
+                        return Err(Error {
+                            kind: ErrorKind::AccessValueToNonArrayType,
+                            severity: ErrorSeverity::Error,
+                            span: array_access.span,
+                        });
                     }
                 }
+            }
+            Expression::Assignment(binary_assignment) => {
+                let name = binary_assignment.left.get_variable_name();
+                if name.is_empty() {
+                    return Err(Error {
+                        kind: ErrorKind::InvalidLeftHandSideAssignment,
+                        severity: ErrorSeverity::Error,
+                        span: binary_assignment.span,
+                    });
+                }
 
-                return Err(Error {
-                    kind: ErrorKind::VariableNotFound(name),
-                    severity: ErrorSeverity::Error,
-                    span: array_access.span,
-                });
+                if let Some(variable) = self.find_variable_by_name(&name) {
+                    if !variable.mutable {
+                        return Err(Error {
+                            kind: ErrorKind::CantAssignImmutableVariable(name),
+                            severity: ErrorSeverity::Error,
+                            span: binary_assignment.span,
+                        });
+                    }
+                    Ok(variable.kind.clone())
+                } else {
+                    Err(Error {
+                        kind: ErrorKind::VariableNotFound(name.clone()),
+                        severity: ErrorSeverity::Error,
+                        span: binary_assignment.span,
+                    })
+                }
             }
         }
     }

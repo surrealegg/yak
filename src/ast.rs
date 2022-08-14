@@ -20,12 +20,10 @@ pub struct Literal {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum BinaryKind {
-    As,
     Plus,
     Minus,
     Asterisk,
     Slash,
-    Equal,
     DoubleEqual,
     BangEqual,
     Great,
@@ -34,40 +32,16 @@ pub enum BinaryKind {
     LessEqual,
     RightShift,
     LeftShift,
-    PlusEqual,
-    MinusEqual,
-    AsteriskEqual,
-    SlashEqual,
-    RightShiftEqual,
-    LeftShiftEqual,
     Modulo,
-    ModuloEqual,
-}
-
-impl BinaryKind {
-    pub fn is_assign(&self) -> bool {
-        match self {
-            BinaryKind::Equal
-            | BinaryKind::PlusEqual
-            | BinaryKind::MinusEqual
-            | BinaryKind::AsteriskEqual
-            | BinaryKind::SlashEqual
-            | BinaryKind::RightShiftEqual
-            | BinaryKind::LeftShiftEqual => true,
-            _ => false,
-        }
-    }
 }
 
 impl ToString for BinaryKind {
     fn to_string(&self) -> String {
         match self {
-            BinaryKind::As => "as",
             BinaryKind::Plus => "+",
             BinaryKind::Minus => "-",
             BinaryKind::Asterisk => "* ",
             BinaryKind::Slash => "/",
-            BinaryKind::Equal => "=",
             BinaryKind::DoubleEqual => "==",
             BinaryKind::BangEqual => "!=",
             BinaryKind::Great => ">",
@@ -76,16 +50,43 @@ impl ToString for BinaryKind {
             BinaryKind::LessEqual => "<=",
             BinaryKind::RightShift => ">>",
             BinaryKind::LeftShift => "<<",
-            BinaryKind::PlusEqual => "+=",
-            BinaryKind::MinusEqual => "-=",
-            BinaryKind::AsteriskEqual => "*=",
-            BinaryKind::SlashEqual => "/=",
-            BinaryKind::RightShiftEqual => ">>=",
-            BinaryKind::LeftShiftEqual => "<<=",
             BinaryKind::Modulo => "%",
-            BinaryKind::ModuloEqual => "%=",
         }
         .to_string()
+    }
+}
+
+impl ToString for AssignmentKind {
+    fn to_string(&self) -> String {
+        match self {
+            AssignmentKind::Equal => "=",
+            AssignmentKind::PlusEqual => "+=",
+            AssignmentKind::MinusEqual => "-=",
+            AssignmentKind::AsteriskEqual => "*=",
+            AssignmentKind::SlashEqual => "/=",
+            AssignmentKind::RightShiftEqual => ">>=",
+            AssignmentKind::LeftShiftEqual => "<<=",
+            AssignmentKind::ModuloEqual => "%=",
+        }
+        .to_string()
+    }
+}
+
+impl TryFrom<TokenKind> for AssignmentKind {
+    type Error = ();
+
+    fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
+        match value {
+            TokenKind::Equal => Ok(AssignmentKind::Equal),
+            TokenKind::PlusEqual => Ok(AssignmentKind::PlusEqual),
+            TokenKind::MinusEqual => Ok(AssignmentKind::MinusEqual),
+            TokenKind::AsteriskEqual => Ok(AssignmentKind::AsteriskEqual),
+            TokenKind::SlashEqual => Ok(AssignmentKind::SlashEqual),
+            TokenKind::RightShiftEqual => Ok(AssignmentKind::RightShiftEqual),
+            TokenKind::LeftShiftEqual => Ok(AssignmentKind::LeftShiftEqual),
+            TokenKind::PercentEqual => Ok(AssignmentKind::ModuloEqual),
+            _ => Err(()),
+        }
     }
 }
 
@@ -94,12 +95,10 @@ impl TryFrom<TokenKind> for BinaryKind {
 
     fn try_from(value: TokenKind) -> Result<Self, Self::Error> {
         match value {
-            TokenKind::As => Ok(BinaryKind::As),
             TokenKind::Plus => Ok(BinaryKind::Plus),
             TokenKind::Minus => Ok(BinaryKind::Minus),
             TokenKind::Asterisk => Ok(BinaryKind::Asterisk),
             TokenKind::Slash => Ok(BinaryKind::Slash),
-            TokenKind::Equal => Ok(BinaryKind::Equal),
             TokenKind::DoubleEqual => Ok(BinaryKind::DoubleEqual),
             TokenKind::BangEqual => Ok(BinaryKind::BangEqual),
             TokenKind::Great => Ok(BinaryKind::Great),
@@ -108,14 +107,7 @@ impl TryFrom<TokenKind> for BinaryKind {
             TokenKind::LessEqual => Ok(BinaryKind::LessEqual),
             TokenKind::RightShift => Ok(BinaryKind::RightShift),
             TokenKind::LeftShift => Ok(BinaryKind::LeftShift),
-            TokenKind::PlusEqual => Ok(BinaryKind::PlusEqual),
-            TokenKind::MinusEqual => Ok(BinaryKind::MinusEqual),
-            TokenKind::AsteriskEqual => Ok(BinaryKind::AsteriskEqual),
-            TokenKind::SlashEqual => Ok(BinaryKind::SlashEqual),
-            TokenKind::RightShiftEqual => Ok(BinaryKind::RightShiftEqual),
-            TokenKind::LeftShiftEqual => Ok(BinaryKind::LeftShiftEqual),
             TokenKind::Percent => Ok(BinaryKind::Modulo),
-            TokenKind::PercentEqual => Ok(BinaryKind::ModuloEqual),
             _ => Err(()),
         }
     }
@@ -181,6 +173,26 @@ pub struct Binary {
 }
 
 #[derive(Debug, Clone)]
+pub enum AssignmentKind {
+    Equal,
+    PlusEqual,
+    MinusEqual,
+    AsteriskEqual,
+    SlashEqual,
+    RightShiftEqual,
+    LeftShiftEqual,
+    ModuloEqual,
+}
+
+#[derive(Debug, Clone)]
+pub struct Assignment {
+    pub left: Box<Expression>,
+    pub right: Box<Expression>,
+    pub kind: AssignmentKind,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
 pub struct Argument {
     pub name: String,
     pub value: Expression,
@@ -231,6 +243,7 @@ pub struct ArrayAccess {
 pub enum Expression {
     Literal(Literal),
     Binary(Binary),
+    Assignment(Assignment),
     Unary(Unary),
     Call(Call),
     Grouping(Grouping),
@@ -528,6 +541,7 @@ impl Expression {
             Expression::Ref(reference) => reference.span,
             Expression::Array(array) => array.span,
             Expression::ArrayAccess(array_access) => array_access.span,
+            Expression::Assignment(binary_assigment) => binary_assigment.span,
         }
     }
 
@@ -545,6 +559,9 @@ impl Expression {
             }
             Expression::ArrayAccess(array_access) => {
                 return array_access.expression.get_variable_name();
+            }
+            Expression::Grouping(inner) => {
+                return inner.expr.get_variable_name();
             }
             _ => {}
         }

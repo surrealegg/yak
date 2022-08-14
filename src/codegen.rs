@@ -10,8 +10,9 @@ use inkwell::{
 };
 
 use crate::ast::{
-    Array, ArrayAccess, Binary, BinaryKind, Call, Cast, Expression, Function, If, Literal,
-    LiteralKind, Prototype, Statement, Type, Unary, UnaryKind, VariableDeclaration, While,
+    Array, ArrayAccess, Assignment, AssignmentKind, Binary, BinaryKind, Call, Cast, Expression,
+    Function, If, Literal, LiteralKind, Prototype, Statement, Type, Unary, UnaryKind,
+    VariableDeclaration, While,
 };
 
 #[derive(Debug, Clone)]
@@ -35,7 +36,6 @@ pub struct Codegen<'a, 'ctx> {
     pub continue_block: Option<BasicBlock<'a>>,
     pub return_value: Option<BasicValueEnum<'a>>,
     pub need_br: bool,
-    pub need_loading: bool,
 }
 
 // using unwrap and unreachable, because it should be checked in typechecker.rs
@@ -74,14 +74,9 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .build_global_string_ptr(value, ".str")
                     .as_pointer_value(),
             ),
-            LiteralKind::Identifier(name) => {
-                let variable = self.find_variable_by_name(name);
-                if self.need_loading {
-                    self.builder.build_load(variable.value, ".load")
-                } else {
-                    variable.value.as_basic_value_enum()
-                }
-            }
+            LiteralKind::Identifier(name) => self
+                .builder
+                .build_load(self.find_variable_by_name(name).value, ".load_identifier"),
             LiteralKind::Integer(value) => {
                 BasicValueEnum::IntValue(self.context.i64_type().const_int(*value as u64, true))
             }
@@ -157,15 +152,6 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
         })
     }
 
-    fn assign(
-        &self,
-        lhs: BasicValueEnum<'a>,
-        rhs: BasicValueEnum<'a>,
-    ) -> Option<BasicValueEnum<'a>> {
-        self.builder.build_store(lhs.into_pointer_value(), rhs);
-        None
-    }
-
     fn modulo(
         &self,
         lhs: BasicValueEnum<'a>,
@@ -178,19 +164,18 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     }
 
     fn binary(&mut self, binary: &Binary) -> Option<BasicValueEnum<'a>> {
-        self.need_loading = false;
-        let mut lhs = self.expression(&binary.left).unwrap();
-        let mut rhs = self.expression(&binary.right).unwrap();
-
-        if let BasicValueEnum::PointerValue(ptr) = rhs {
-            rhs = self.builder.build_load(ptr, ".load");
-        }
-
-        if let BasicValueEnum::PointerValue(ptr) = lhs {
-            if !binary.kind.is_assign() {
-                lhs = self.builder.build_load(ptr, ".load");
-            }
-        }
+        let lhs = self.expression(&binary.left).unwrap();
+        let rhs = self.expression(&binary.right).unwrap();
+        let lhs = if let BasicValueEnum::PointerValue(ptr) = lhs {
+            self.builder.build_load(ptr, ".load_binary")
+        } else {
+            lhs
+        };
+        let rhs = if let BasicValueEnum::PointerValue(ptr) = rhs {
+            self.builder.build_load(ptr, ".load_binary")
+        } else {
+            rhs
+        };
 
         let result = match binary.kind {
             BinaryKind::Plus => self.add(lhs, rhs),
@@ -205,64 +190,9 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             BinaryKind::LessEqual => self.cmp(lhs, rhs, IntPredicate::SLE, FloatPredicate::OLE),
             BinaryKind::RightShift => unimplemented!(),
             BinaryKind::LeftShift => unimplemented!(),
-            BinaryKind::Equal => self.assign(lhs, rhs),
-            BinaryKind::PlusEqual => self.assign(
-                lhs,
-                self.add(
-                    self.builder
-                        .build_load(lhs.into_pointer_value(), ".load")
-                        .as_basic_value_enum(),
-                    rhs,
-                )
-                .unwrap(),
-            ),
-            BinaryKind::MinusEqual => self.assign(
-                lhs,
-                self.sub(
-                    self.builder
-                        .build_load(lhs.into_pointer_value(), ".load")
-                        .as_basic_value_enum(),
-                    rhs,
-                )
-                .unwrap(),
-            ),
-            BinaryKind::AsteriskEqual => self.assign(
-                lhs,
-                self.mul(
-                    self.builder
-                        .build_load(lhs.into_pointer_value(), ".load")
-                        .as_basic_value_enum(),
-                    rhs,
-                )
-                .unwrap(),
-            ),
-            BinaryKind::SlashEqual => self.assign(
-                lhs,
-                self.div(
-                    self.builder
-                        .build_load(lhs.into_pointer_value(), ".load")
-                        .as_basic_value_enum(),
-                    rhs,
-                )
-                .unwrap(),
-            ),
             BinaryKind::Modulo => self.modulo(lhs, rhs),
-            BinaryKind::ModuloEqual => self.assign(
-                lhs,
-                self.modulo(
-                    self.builder
-                        .build_load(lhs.into_pointer_value(), ".load")
-                        .as_basic_value_enum(),
-                    rhs,
-                )
-                .unwrap(),
-            ),
-            BinaryKind::RightShiftEqual => unimplemented!(),
-            BinaryKind::LeftShiftEqual => unimplemented!(),
-            _ => unreachable!(),
         };
 
-        self.need_loading = true;
         result
     }
 
@@ -333,10 +263,10 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .ptr_type(AddressSpace::Generic)
                     .as_basic_type_enum(),
             ),
-            Type::Array(inner, size) => Some(
+            Type::Array(inner, _) => Some(
                 self.from_type_to_llvm_basic_type(inner)
                     .unwrap()
-                    .array_type(*size)
+                    .ptr_type(AddressSpace::Generic)
                     .as_basic_type_enum(),
             ),
         }
@@ -383,28 +313,50 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
     }
 
     fn array_access(&mut self, array_access: &ArrayAccess) -> Option<BasicValueEnum<'a>> {
-        let variable = self.find_variable_by_name(&array_access.expression.get_variable_name());
-        let ptr = self.builder.build_load(variable.value, ".load");
-
-        // NOTE: We must make sure that the pointer is loaded
-        let need_loading = self.need_loading;
-        self.need_loading = true;
-        let index = self
-            .expression(&array_access.index)
-            .unwrap()
-            .into_int_value();
-        self.need_loading = need_loading;
+        let variable = self.expression(&array_access.expression).unwrap();
+        let index = self.expression(&array_access.index).unwrap();
 
         unsafe {
-            let temp =
-                self.builder
-                    .build_in_bounds_gep(ptr.into_pointer_value(), &[index], ".load_ref");
-            Some(if self.need_loading {
-                self.builder.build_load(temp, ".load_access")
-            } else {
-                temp.as_basic_value_enum()
-            })
+            let ptr = self.builder.build_in_bounds_gep(
+                variable.into_pointer_value(),
+                &[index.into_int_value()],
+                ".gep_array_access",
+            );
+            Some(self.builder.build_load(ptr, ".load_array_access"))
         }
+    }
+
+    fn assignment(&mut self, assignment: &Assignment) -> Option<BasicValueEnum<'a>> {
+        let lhs = self.expression_lhs(&assignment.left).unwrap();
+        let rhs = self.expression(&assignment.right).unwrap();
+        let rhs = match assignment.kind {
+            AssignmentKind::Equal => rhs,
+            AssignmentKind::PlusEqual => {
+                let lhs = self.expression(&assignment.left).unwrap();
+                self.add(lhs, rhs).unwrap()
+            }
+            AssignmentKind::MinusEqual => {
+                let lhs = self.expression(&assignment.left).unwrap();
+                self.sub(lhs, rhs).unwrap()
+            }
+            AssignmentKind::AsteriskEqual => {
+                let lhs = self.expression(&assignment.left).unwrap();
+                self.mul(lhs, rhs).unwrap()
+            }
+            AssignmentKind::SlashEqual => {
+                let lhs = self.expression(&assignment.left).unwrap();
+                self.div(lhs, rhs).unwrap()
+            }
+            AssignmentKind::RightShiftEqual => todo!(),
+            AssignmentKind::LeftShiftEqual => todo!(),
+            AssignmentKind::ModuloEqual => {
+                let lhs = self.expression(&assignment.left).unwrap();
+                self.modulo(lhs, rhs).unwrap()
+            }
+        };
+
+        self.builder.build_store(lhs, rhs);
+        None
     }
 
     fn expression(&mut self, expression: &Expression) -> Option<BasicValueEnum<'a>> {
@@ -422,6 +374,36 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
             ),
             Expression::Array(array) => self.array(array),
             Expression::ArrayAccess(array_access) => self.array_access(array_access),
+            Expression::Assignment(assignment) => self.assignment(assignment),
+        }
+    }
+
+    fn expression_lhs(&mut self, expression: &Expression) -> Option<PointerValue<'a>> {
+        match expression {
+            Expression::Literal(literal) => {
+                if let LiteralKind::Identifier(name) = &literal.kind {
+                    let var = self.find_variable_by_name(name);
+                    return Some(var.value);
+                }
+                unreachable!()
+            }
+            Expression::Unary(unary) => {
+                if let UnaryKind::Load = unary.kind {
+                    return Some(
+                        self.builder
+                            .build_load(self.expression_lhs(&unary.expr).unwrap(), ".load_lhs")
+                            .into_pointer_value(),
+                    );
+                }
+                unreachable!()
+            }
+            Expression::Grouping(inner) => self.expression_lhs(&inner.expr),
+            Expression::ArrayAccess(array_access) => Some(
+                self.array_access(array_access)
+                    .unwrap()
+                    .into_pointer_value(),
+            ),
+            _ => unreachable!(),
         }
     }
 

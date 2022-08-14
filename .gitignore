@@ -7,3 +7,7 @@
 
 # LLVM
 *.ll
+
+# Debugging
+*.c
+/.vscode/

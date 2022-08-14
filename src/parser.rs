@@ -1,8 +1,9 @@
 use crate::{
     ast::{
-        Argument, Array, ArrayAccess, Binary, BinaryKind, Block, Break, Call, Cast, Continue,
-        Expression, Function, Grouping, If, Literal, LiteralKind, Param, Prototype, Ref, Return,
-        Statement, Type, Unary, UnaryKind, Unsafe, VariableDeclaration, While,
+        Argument, Array, ArrayAccess, Assignment, AssignmentKind, Binary, BinaryKind, Block, Break,
+        Call, Cast, Continue, Expression, Function, Grouping, If, Literal, LiteralKind, Param,
+        Prototype, Ref, Return, Statement, Type, Unary, UnaryKind, Unsafe, VariableDeclaration,
+        While,
     },
     error::{Error, ErrorKind, ErrorSeverity},
     tokens::{Token, TokenKind},
@@ -203,20 +204,18 @@ impl Parser {
             }));
         }
 
-        let literal = self.literal()?;
+        let mut literal = self.literal()?;
         self.advance();
-
-        if self.matches_bool(&[TokenKind::SquareBracketOpen]) {
+        while self.matches_bool(&[TokenKind::SquareBracketOpen]) {
             let index = self.expression()?;
             self.consume(&[TokenKind::SquareBracketClose])?;
-            Ok(Expression::ArrayAccess(ArrayAccess {
+            literal = Expression::ArrayAccess(ArrayAccess {
                 expression: Box::from(literal),
                 index: Box::from(index),
                 span: self.span(),
-            }))
-        } else {
-            Ok(literal)
+            });
         }
+        Ok(literal)
     }
 
     fn call(&mut self) -> Result<Expression, Error> {
@@ -300,11 +299,11 @@ impl Parser {
             TokenKind::Equal,
         ]) {
             let right = self.reference()?;
-            left = Expression::Binary(Binary {
+            left = Expression::Assignment(Assignment {
                 span: self.span(),
                 left: Box::from(left),
                 right: Box::from(right),
-                kind: BinaryKind::try_from(op.kind)
+                kind: AssignmentKind::try_from(op.kind)
                     .or_else(|_| Err(self.error(ErrorKind::UnexpectedBinaryOperator)))?,
             });
         }
