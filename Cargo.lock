@@ -42,13 +42,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f107b87b6afc2a64fd13cac55fe06d6c8859f12d4b14cbcdd2c67d0976781be"
 
 [[package]]
-name = "hunter-compiler"
-version = "0.1.0"
-dependencies = [
- "inkwell",
-]
-
-[[package]]
 name = "inkwell"
 version = "0.1.0"
 source = "git+https://github.com/TheDan64/inkwell?branch=master#25b9fc5870370211504e874e7c81dc53573bca79"
@@ -262,3 +255,10 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "yakc"
+version = "0.1.0"
+dependencies = [
+ "inkwell",
+]
