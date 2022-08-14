@@ -316,7 +316,7 @@ pub enum Type {
     Raw(Box<Type>),
     Ref(Box<Type>),
     MutRef(Box<Type>),
-    Array(Box<Type>, u32),
+    Array(Box<Type>),
 }
 
 impl ToString for Type {
@@ -343,7 +343,7 @@ impl ToString for Type {
             Type::Raw(inner) => format!("raw {}", inner.to_string()),
             Type::Ref(inner) => format!("&{}", inner.to_string()),
             Type::MutRef(inner) => format!("&mut {}", inner.to_string()),
-            Type::Array(inner, _) => format!("[{}]", inner.to_string()),
+            Type::Array(inner) => format!("[{}]", inner.to_string()),
         }
     }
 }
@@ -354,7 +354,7 @@ impl Type {
             (Type::Raw(inner_a), Type::Raw(inner_b))
             | (Type::Ref(inner_a), Type::Ref(inner_b))
             | (Type::MutRef(inner_a), Type::MutRef(inner_b))
-            | (Type::Array(inner_a, _), Type::Array(inner_b, _)) => inner_a.equal(inner_b),
+            | (Type::Array(inner_a), Type::Array(inner_b)) => inner_a.equal(inner_b),
             (a, b) => variant_eq(a, b),
         }
     }

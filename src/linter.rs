@@ -181,7 +181,7 @@ impl Linter {
             Expression::Grouping(grouping) => self.check_expression(&mut grouping.expr),
             Expression::Cast(cast) => {
                 let current_expression = self.check_expression(&mut cast.expr)?;
-                if current_expression.can_cast(&cast.kind) {
+                if current_expression.equal(&cast.kind) || current_expression.can_cast(&cast.kind) {
                     Ok(cast.kind.clone())
                 } else {
                     Err(Error {
@@ -227,10 +227,7 @@ impl Linter {
                         span: array.span,
                     })
                 } else {
-                    Ok(Type::Array(
-                        Box::from(array.kind.clone()),
-                        types.len() as u32,
-                    ))
+                    Ok(Type::Array(Box::from(array.kind.clone())))
                 }
             }
             Expression::ArrayAccess(array_access) => {
@@ -245,7 +242,7 @@ impl Linter {
                 }
 
                 match &expr {
-                    Type::Raw(kind) | Type::Array(kind, _) => {
+                    Type::Raw(kind) | Type::Array(kind) => {
                         return Ok(*kind.clone());
                     }
                     _ => {

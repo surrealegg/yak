@@ -511,6 +511,12 @@ impl Parser {
                 let kind = self.consume_type()?;
                 return Ok(Type::Raw(Box::new(kind)));
             }
+            TokenKind::SquareBracketOpen => {
+                self.advance();
+                let kind = self.consume_type()?;
+                self.consume(&[TokenKind::SquareBracketClose])?;
+                return Ok(Type::Array(Box::from(kind)));
+            }
             _ => return Err(self.error(ErrorKind::ExpectedType)),
         };
         self.advance();

@@ -263,7 +263,7 @@ impl<'a, 'ctx> Codegen<'a, 'ctx> {
                     .ptr_type(AddressSpace::Generic)
                     .as_basic_type_enum(),
             ),
-            Type::Array(inner, _) => Some(
+            Type::Array(inner) => Some(
                 self.from_type_to_llvm_basic_type(inner)
                     .unwrap()
                     .ptr_type(AddressSpace::Generic)

@@ -1,0 +1,6 @@
+extern function printf(anon format: raw c_char, anon a: raw c_char) -> usize
+
+function main() {
+    let x: [[[raw c_char]]] = [[["PASS"]]];
+    printf("%s\n", x[0][0][0]);
+}
